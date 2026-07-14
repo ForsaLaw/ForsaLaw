@@ -18,14 +18,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
 
     @Query("SELECT a FROM AuditLog a WHERE " +
             "(:actorUserId IS NULL OR a.actor.id = :actorUserId) AND " +
-            "(:moduleName IS NULL OR LOWER(a.moduleName) LIKE LOWER(CONCAT('%', :moduleName, '%'))) AND " +
-            "(:action IS NULL OR LOWER(a.action) LIKE LOWER(CONCAT('%', :action, '%'))) AND " +
+            "(:moduleNamePattern IS NULL OR LOWER(a.moduleName) LIKE :moduleNamePattern) AND " +
+            "(:actionPattern IS NULL OR LOWER(a.action) LIKE :actionPattern) AND " +
             "(:method IS NULL OR UPPER(a.method) = :method) AND " +
             "(:httpStatus IS NULL OR a.httpStatus = :httpStatus)")
     Page<AuditLog> findForAdmin(
             @Param("actorUserId") String actorUserId,
-            @Param("moduleName") String moduleName,
-            @Param("action") String action,
+            @Param("moduleNamePattern") String moduleNamePattern,
+            @Param("actionPattern") String actionPattern,
             @Param("method") String method,
             @Param("httpStatus") Integer httpStatus,
             Pageable pageable

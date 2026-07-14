@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Fingerprint,
@@ -6,10 +6,8 @@ import {
   Shield,
   ShieldCheck,
   ShieldAlert,
-  UploadCloud,
   Plus,
   Loader2,
-  X,
   AlertTriangle,
   Download,
   History,
@@ -17,198 +15,32 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import UploadDocumentModal from '../components/dossier/UploadDocumentModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import * as documentsApi from '../api/documents.js'
+import { fmtDate, useDossierPageData } from '../hooks/useDossierPageData.js'
 import '../styles/Dossier.css'
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('fr-FR', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })
-}
-
-// ─── Upload Document Modal ───────────────────────────────────────────────────
-function UploadDocumentModal({ token, onUploaded, onClose }) {
-  const [file, setFile] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState(null)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!file) {
-      setErr('Veuillez sélectionner un fichier.')
-      return
-    }
-    setBusy(true)
-    setErr(null)
-    try {
-      const dto = await documentsApi.uploadDocument(token, file)
-      onUploaded(dto)
-    } catch (error) {
-      setErr(error?.message || String(error))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <motion.div
-      className="dossier-modal-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div
-        className="dossier-modal"
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 30, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="dossier-modal__header">
-          <h2>Dépôt Sécurisé</h2>
-          <button type="button" className="dossier-modal__close" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-        <form className="dossier-modal__form" onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem', color: 'var(--gold)', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(212,175,55,0.1)', padding: '1rem', border: '1px solid var(--gold)' }}>
-             <Shield size={24} style={{ flexShrink: 0 }} />
-             <p>Tout fichier déposé dans le coffre-fort sera horodaté et son intégrité scellée via une empreinte cryptographique SHA-256 inviolable.</p>
-          </div>
-          <label className="dossier-modal__label">
-            <span>Fichier à sceller</span>
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              required
-              disabled={busy}
-              style={{ border: '2px solid var(--black)', padding: '0.5rem' }}
-            />
-          </label>
-          
-          {err && (
-            <p className="dossier-modal__error">
-              <AlertTriangle size={14} /> {err}
-            </p>
-          )}
-          <button type="submit" className="dossier-modal__submit" disabled={busy || !file}>
-            {busy ? <Loader2 className="forsalaw-spin" size={16} /> : <UploadCloud size={16} />}
-            Sceller et Uploader
-          </button>
-        </form>
-      </motion.div>
-    </motion.div>
-  )
-}
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
 const DossierPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { token, isAuthenticated, user } = useAuth()
-
-  const [documents, setDocuments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
-
-  const [activeDoc, setActiveDoc] = useState(null)
-  
-  // History timeline
-  const [history, setHistory] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-
-  // Integrity Check
-  const [verificationResult, setVerificationResult] = useState(null)
-  const [verifying, setVerifying] = useState(false)
-
-  const [showUploadModal, setShowUploadModal] = useState(false)
-
-  const loadDocuments = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    setLoadError(null)
-    try {
-      const page = await documentsApi.listMyDocuments(token, { page: 0, size: 50 })
-      const list = page?.content ?? []
-      setDocuments(list)
-      if (list.length > 0 && !activeDoc) {
-        setActiveDoc(list[0])
-      }
-    } catch (e) {
-      setLoadError(e?.message || String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    if (!token || !isAuthenticated) return
-    loadDocuments()
-  }, [token, isAuthenticated, loadDocuments])
-
-  // Load History when activeDoc changes
-  useEffect(() => {
-    if (!activeDoc || !token) {
-      setHistory([])
-      setVerificationResult(null)
-      return
-    }
-    let cancelled = false
-    setVerificationResult(null)
-    setHistoryLoading(true)
-    documentsApi.getDocumentHistory(token, activeDoc.id, { size: 50 })
-      .then((page) => { if (!cancelled) setHistory(page?.content ?? []) })
-      .catch(() => { if (!cancelled) setHistory([]) })
-      .finally(() => { if (!cancelled) setHistoryLoading(false) })
-    return () => { cancelled = true }
-  }, [activeDoc?.id, token])
-
-  const handleDocumentUploaded = (dto) => {
-    setDocuments((prev) => [dto, ...prev])
-    setActiveDoc(dto)
-    setShowUploadModal(false)
-  }
-
-  const handleDownload = async () => {
-    if (!token || !activeDoc) return
-    try {
-      const blob = await documentsApi.downloadDocument(token, activeDoc.id)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = activeDoc.nomOriginal || 'document.pdf'
-      a.click()
-      URL.revokeObjectURL(url)
-      
-      // Auto-refresh history to show DOWNLOAD action
-      const page = await documentsApi.getDocumentHistory(token, activeDoc.id, { size: 50 })
-      setHistory(page?.content ?? [])
-    } catch (err) {
-      window.alert('Erreur lors du téléchargement : ' + err.message)
-    }
-  }
-
-  const handleVerifyIntegrity = async () => {
-    if (!token || !activeDoc) return
-    setVerifying(true)
-    setVerificationResult(null)
-    try {
-      const res = await documentsApi.verifyIntegrity(token, activeDoc.id)
-      setVerificationResult(res)
-      
-      // Auto-refresh history to show VERIFY_INTEGRITY action
-      const page = await documentsApi.getDocumentHistory(token, activeDoc.id, { size: 50 })
-      setHistory(page?.content ?? [])
-    } catch (err) {
-      window.alert('Échec de la vérification : ' + err.message)
-    } finally {
-      setVerifying(false)
-    }
-  }
+  const {
+    documents,
+    loading,
+    loadError,
+    activeDoc,
+    setActiveDoc,
+    history,
+    historyLoading,
+    verificationResult,
+    verifying,
+    showUploadModal,
+    setShowUploadModal,
+    handleDocumentUploaded,
+    handleDownload,
+    handleVerifyIntegrity,
+  } = useDossierPageData({ token, isAuthenticated })
 
   // ─── Redirect if not authenticated ────────────────────────────────────────
   if (!isAuthenticated || !token) {

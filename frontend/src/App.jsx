@@ -1,17 +1,24 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, FileText, Users, Sparkles, Shield, Menu, X, MessageCircle, Award, UserCog, ArrowRight, Mail, Lock, User, MessageSquare, Calendar as LucideCalendar } from 'lucide-react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Menu, X } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AppErrorBoundary from './components/AppErrorBoundary'
+import { getNavItems, mapPageKeyToPath } from './components/app/appNavigation.jsx'
+import AppRoutes from './components/app/AppRoutes'
+import AuthIntroOverlay from './components/app/AuthIntroOverlay'
+import AuthModal from './components/app/AuthModal'
+import NavGalleryOverlay from './components/app/NavGalleryOverlay'
+import TopRightControls from './components/app/TopRightControls'
 import RouteLoadingScreen from './components/RouteLoadingScreen'
 import ScrollToTop from './components/ScrollToTop'
 import ScrollToTopButton from './components/ScrollToTopButton'
 import SiteVideoBackground from './components/SiteVideoBackground'
+import { useAppAuthFlow } from './hooks/useAppAuthFlow.js'
+import { useEscapeKeyClose } from './hooks/useEscapeKeyClose.js'
 import './styles/App.css'
 import { lazyRoute } from './utils/lazyRoute'
 import { useAuth } from './context/AuthContext.jsx'
-import * as authApi from './api/auth.js'
 
 const HomePage = lazyRoute(() => import('./pages/HomePage'))
 const ForumPage = lazyRoute(() => import('./pages/ForumPage'))
@@ -35,128 +42,44 @@ function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const [isNavOpen,   setIsNavOpen]   = useState(false)
-  const [authMode, setAuthMode] = useState(null) // 'login' | 'register' | 'forgot' | null
-  const [authIntroMode, setAuthIntroMode] = useState(null)
-  const [authIntroStriking, setAuthIntroStriking] = useState(false)
-  const [formNom, setFormNom] = useState('')
-  const [formPrenom, setFormPrenom] = useState('')
-  const [formEmail, setFormEmail] = useState('')
-  const [formPassword, setFormPassword] = useState('')
-  const [authFormError, setAuthFormError] = useState(null)
-  const [authFormSuccess, setAuthFormSuccess] = useState(null)
-  const [authSubmitting, setAuthSubmitting] = useState(false)
-  const authCardRef = useRef(null)
-  const lastActiveElRef = useRef(null)
-  const authIntroTimerRef = useRef(null)
+  const {
+    authMode,
+    authIntroMode,
+    authIntroStriking,
+    formNom,
+    formPrenom,
+    formEmail,
+    formPassword,
+    authFormError,
+    authFormSuccess,
+    authSubmitting,
+    authCardRef,
+    openAuth,
+    closeAuth,
+    closeAuthIntro,
+    handleAuthIntroStrike,
+    handleAuthSubmit,
+    setFormNom,
+    setFormPrenom,
+    setFormEmail,
+    setFormPassword,
+    setAuthMode,
+  } = useAppAuthFlow({ login, register })
 
   useEffect(() => {
     document.body.dir = i18n.dir()
   }, [i18n.language])
 
-  useEffect(() => {
-    return () => {
-      if (authIntroTimerRef.current) {
-        clearTimeout(authIntroTimerRef.current)
-      }
-    }
-  }, [])
+  useEscapeKeyClose({
+    authIntroMode,
+    authMode,
+    isNavOpen,
+    closeAuthIntro,
+    closeAuth,
+    closeNav: () => setIsNavOpen(false),
+  })
 
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.key !== 'Escape') return
-
-      if (authIntroMode) {
-        e.preventDefault()
-        setAuthIntroMode(null)
-        setAuthIntroStriking(false)
-        return
-      }
-
-      if (authMode) {
-        e.preventDefault()
-        setAuthMode(null)
-        return
-      }
-
-      if (isNavOpen) {
-        e.preventDefault()
-        setIsNavOpen(false)
-        return
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [authMode, authIntroMode, isNavOpen])
-
-  useEffect(() => {
-    if (!authMode) return
-
-    lastActiveElRef.current = document.activeElement
-
-    const root = authCardRef.current
-    const focusable = root?.querySelector(
-      'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
-    )
-    if (focusable) {
-      focusable.focus()
-    }
-
-    const onTrap = (e) => {
-      if (e.key !== 'Tab') return
-      const container = authCardRef.current
-      if (!container) return
-
-      const els = Array.from(
-        container.querySelectorAll('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])')
-      ).filter((el) => !el.hasAttribute('disabled') && !el.getAttribute('aria-hidden'))
-
-      if (els.length === 0) return
-
-      const first = els[0]
-      const last = els[els.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first || !container.contains(document.activeElement)) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onTrap)
-    return () => {
-      window.removeEventListener('keydown', onTrap)
-      const lastActive = lastActiveElRef.current
-      if (lastActive && typeof lastActive.focus === 'function') {
-        lastActive.focus()
-      }
-    }
-  }, [authMode])
-
-  const NAV_ITEMS = useMemo(() => {
-    const items = [
-      { key: 'nav_home', path: '/', icon: <LayoutGrid size={28} /> },
-      { key: 'nav_cases', path: '/cases', icon: <FileText size={28} /> },
-      { key: 'nav_support', path: '/support', icon: <MessageSquare size={28} /> },
-      { key: 'nav_calendar', path: '/calendar', icon: <LucideCalendar size={28} /> },
-      { key: 'nav_inbox', path: '/inbox', icon: <Mail size={28} /> },
-      { key: 'nav_lawyers', path: '/lawyers', icon: <Users size={28} /> },
-      { key: 'nav_lawyer_space', path: '/lawyer-space', icon: <Award size={28} /> },
-      { key: 'nav_forum', path: '/forum', icon: <MessageCircle size={28} /> },
-      { key: 'nav_ai', path: '/ai', icon: <Sparkles size={28} /> },
-      { key: 'nav_admin', path: '/admin-space', icon: <Shield size={28} /> },
-    ]
-    if (isAuthenticated) {
-      items.splice(6, 0, { key: 'nav_client_space', path: '/client-space', icon: <UserCog size={28} /> })
-    }
-    return items
-  }, [isAuthenticated])
+  const NAV_ITEMS = useMemo(() => getNavItems(isAuthenticated), [isAuthenticated])
 
   const toggleLanguage = () => {
     const cycle = { fr: 'ar', ar: 'en', en: 'fr' }
@@ -165,96 +88,8 @@ function App() {
 
   const isInboxRoute = location.pathname === '/inbox'
 
-  const openAuth = (mode, withIntro = false) => {
-    setAuthFormError(null)
-    setAuthFormSuccess(null)
-    if (withIntro) {
-      setAuthMode(null)
-      setAuthIntroMode(mode)
-      setAuthIntroStriking(false)
-      return
-    }
-    setAuthIntroMode(null)
-    setAuthIntroStriking(false)
-    setAuthMode(mode)
-  }
-
-  const handleAuthIntroStrike = () => {
-    if (!authIntroMode || authIntroStriking) return
-    setAuthIntroStriking(true)
-    if (authIntroTimerRef.current) {
-      clearTimeout(authIntroTimerRef.current)
-    }
-    authIntroTimerRef.current = setTimeout(() => {
-      setAuthIntroMode(null)
-      setAuthIntroStriking(false)
-      setAuthMode(authIntroMode)
-    }, 680)
-  }
-
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault()
-    setAuthFormError(null)
-    setAuthFormSuccess(null)
-    const email = formEmail.trim()
-    if (authMode === 'forgot') {
-      setAuthSubmitting(true)
-      try {
-        const msg = await authApi.forgotPassword({ email })
-        setAuthFormSuccess(typeof msg === 'string' ? msg : String(msg))
-      } catch (err) {
-        setAuthFormError(err?.message || String(err))
-      } finally {
-        setAuthSubmitting(false)
-      }
-      return
-    }
-    if (!email) {
-      setAuthFormError("L'email est requis.")
-      return
-    }
-    if (!formPassword) {
-      setAuthFormError('Le mot de passe est requis.')
-      return
-    }
-    setAuthSubmitting(true)
-    try {
-      if (authMode === 'login') {
-        await login({ email, motDePasse: formPassword })
-        setAuthMode(null)
-      } else if (authMode === 'register') {
-        const nom = formNom.trim()
-        const prenom = formPrenom.trim()
-        if (!nom || !prenom) {
-          setAuthFormError('Le nom et le prénom sont requis.')
-          setAuthSubmitting(false)
-          return
-        }
-        await register({ nom, prenom, email, motDePasse: formPassword })
-        setAuthMode(null)
-      }
-    } catch (err) {
-      setAuthFormError(err?.message || String(err))
-    } finally {
-      setAuthSubmitting(false)
-    }
-  }
-
   const navigateToPageKey = (pageKey) => {
-    const map = {
-      home: '/',
-      cases: '/cases',
-      support: '/support',
-      calendar: '/calendar',
-      inbox: '/inbox',
-      lawyers: '/lawyers',
-      'client-space': '/client-space',
-      'lawyer-space': '/lawyer-space',
-      forum: '/forum',
-      ai: '/ai',
-      'admin-space': '/admin-space',
-    }
-    const path = map[pageKey] ?? '/'
+    const path = mapPageKeyToPath(pageKey)
     setIsNavOpen(false)
     navigate(path)
   }
@@ -282,323 +117,83 @@ function App() {
         {isNavOpen ? <X size={22} /> : <Menu size={22} />}
       </motion.button>
 
-      {/* Auth and language controls — hidden on inbox (app owns the full screen there) */}
-      {!isInboxRoute && (
-        <div className="top-right-controls">
-          {isAuthenticated ? (
-            <>
-              {user?.roleUser === 'client' ? (
-                <>
-                  <button
-                    type="button"
-                    className="auth-top-btn"
-                    onClick={() => navigate('/client-space?tab=profile')}
-                    title={user?.email ?? ''}
-                  >
-                    {t('nav_client_space')}
-                  </button>
-                  <button
-                    type="button"
-                    className="auth-top-btn"
-                    onClick={() => navigate('/lawyer-space')}
-                    title={user?.email ?? ''}
-                  >
-                    {t('nav_lawyer_space')}
-                  </button>
-                </>
-              ) : user?.roleUser === 'avocat' ? (
-                <button
-                  type="button"
-                  className="auth-top-btn"
-                  onClick={() => navigate('/lawyer-space')}
-                  title={user?.email ?? ''}
-                >
-                  {t('nav_lawyer_space')}
-                </button>
-              ) : (
-                <span className="auth-user-label" title={user?.email}>
-                  {user?.prenom} {user?.nom}
-                </span>
-              )}
-              <button
-                type="button"
-                className="auth-top-btn"
-                onClick={() => {
-                  logout()
-                  setAuthMode(null)
-                }}
-              >
-                Déconnexion
-              </button>
-            </>
-          ) : (
-            <button type="button" className="auth-top-btn" onClick={() => openAuth('login', true)}>
-              {t('top_login')}
-            </button>
-          )}
-          <button type="button" className="lang-toggle-btn" onClick={toggleLanguage}>
-            {i18n.language.toUpperCase()}
-          </button>
-        </div>
-      )}
+      <TopRightControls
+        isInboxRoute={isInboxRoute}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        t={t}
+        language={i18n.language.toUpperCase()}
+        onOpenLogin={() => openAuth('login', true)}
+        onNavigateClientSpace={() => navigate('/client-space?tab=profile')}
+        onNavigateLawyerSpace={() => navigate('/lawyer-space')}
+        onLogout={() => {
+          logout()
+          setAuthMode(null)
+        }}
+        onToggleLanguage={toggleLanguage}
+      />
 
       <div className="app-main-shell">
         <AppErrorBoundary>
           <Suspense fallback={<RouteLoadingScreen />}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 1 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Routes location={location}>
-                  <Route path="/" element={<HomePage onNavigate={navigateToPageKey} />} />
-                  <Route path="/forum" element={<ForumPage />} />
-                  <Route path="/lawyers" element={<LawyersPage />} />
-                  <Route path="/cases" element={<DossierPage />} />
-                  <Route path="/ai" element={<AiSanctumPage />} />
-                  <Route path="/lawyer-space" element={<LawyerSpacePage />} />
-                  <Route path="/client-space" element={<ClientSpacePage />} />
-                  <Route path="/admin-space" element={<AdminSpacePage />} />
-                  <Route path="/support" element={<SupportPage />} />
-                  <Route path="/calendar" element={<CalendarPage />} />
-                  <Route path="/inbox" element={<InboxPage />} />
-                  <Route path="/appointments/new/:avocatId" element={<AppointmentBookingPage />} />
-                  <Route path="/rendezvous/:idRendezVous/online-room" element={<OnlineMeetingRoomPage />} />
-                  <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/auth/google/callback" element={<GoogleOAuthCallbackPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </motion.div>
-            </AnimatePresence>
+            <AppRoutes
+              location={location}
+              HomePage={HomePage}
+              ForumPage={ForumPage}
+              LawyersPage={LawyersPage}
+              DossierPage={DossierPage}
+              AiSanctumPage={AiSanctumPage}
+              LawyerSpacePage={LawyerSpacePage}
+              ClientSpacePage={ClientSpacePage}
+              AdminSpacePage={AdminSpacePage}
+              SupportPage={SupportPage}
+              CalendarPage={CalendarPage}
+              InboxPage={InboxPage}
+              AppointmentBookingPage={AppointmentBookingPage}
+              OnlineMeetingRoomPage={OnlineMeetingRoomPage}
+              AuthPage={AuthPage}
+              GoogleOAuthCallbackPage={GoogleOAuthCallbackPage}
+              onNavigateByPageKey={navigateToPageKey}
+            />
           </Suspense>
         </AppErrorBoundary>
       </div>
 
-      {/* Full-screen Navigation Gallery */}
-      <AnimatePresence>
-        {isNavOpen && (
-          <motion.div
-            className="nav-gallery-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsNavOpen(false)}
-          >
-            <p className="nav-gallery-title">{t('nav_gallery_title')}</p>
-            <motion.div
-              className="nav-gallery-grid"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              onClick={e => e.stopPropagation()}
-            >
-              {NAV_ITEMS.map((item, idx) => (
-                <motion.button
-                  key={item.key}
-                  className="nav-gallery-item"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 * idx }}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    setIsNavOpen(false)
-                    navigate(item.path)
-                  }}
-                >
-                  {item.icon}
-                  <span>{t(item.key)}</span>
-                </motion.button>
-              ))}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NavGalleryOverlay
+        isOpen={isNavOpen}
+        navItems={NAV_ITEMS}
+        t={t}
+        onClose={() => setIsNavOpen(false)}
+        onNavigate={(path) => {
+          setIsNavOpen(false)
+          navigate(path)
+        }}
+      />
 
-      {/* Authentication modal without dedicated page */}
-      <AnimatePresence>
-        {authIntroMode && (
-          <motion.div
-            className="auth-intro-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className={`auth-intro-stage${authIntroStriking ? ' is-striking' : ''}`}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.97, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <p className="auth-intro-title">Validation d&apos;audience</p>
-              <p className="auth-intro-sub">Cliquez sur le marteau pour ouvrir la chambre de connexion.</p>
-              <button
-                type="button"
-                className="auth-intro-gavel-btn"
-                onClick={handleAuthIntroStrike}
-                disabled={authIntroStriking}
-                aria-label="Frapper avec le marteau"
-              >
-                <svg
-                  className="auth-intro-gavel-svg"
-                  viewBox="0 0 320 130"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <defs>
-                    <linearGradient id="gavelWood" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#7b4a2c" />
-                      <stop offset="45%" stopColor="#5a331f" />
-                      <stop offset="100%" stopColor="#2c180f" />
-                    </linearGradient>
-                    <linearGradient id="gavelMetal" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#f4d27b" />
-                      <stop offset="100%" stopColor="#ab7a2b" />
-                    </linearGradient>
-                  </defs>
-                  <g transform="rotate(0 180 72)">
-                    <rect x="40" y="64" width="160" height="12" rx="6" fill="url(#gavelWood)" />
-                    <rect x="178" y="45" width="80" height="40" rx="9" fill="url(#gavelWood)" />
-                    <rect x="201" y="50" width="34" height="30" rx="6" fill="url(#gavelMetal)" />
-                    <rect x="170" y="47" width="12" height="36" rx="5" fill="#3c2113" />
-                    <rect x="257" y="47" width="12" height="36" rx="5" fill="#3c2113" />
-                  </g>
-                </svg>
-              </button>
-              <div className="auth-intro-block" aria-hidden />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AuthIntroOverlay
+        authIntroMode={authIntroMode}
+        authIntroStriking={authIntroStriking}
+        onStrike={handleAuthIntroStrike}
+      />
 
-      <AnimatePresence>
-        {authMode && (
-          <motion.div
-            className="auth-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setAuthMode(null)}
-            role="presentation"
-          >
-            <motion.div
-              className="auth-modal-card"
-              initial={{ y: 22, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 22, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              ref={authCardRef}
-            >
-              <div className="auth-modal-tabs">
-                <button type="button" className={authMode === 'login' ? 'active' : ''} onClick={() => openAuth('login')}>
-                  Connexion
-                </button>
-                <button type="button" className={authMode === 'register' ? 'active' : ''} onClick={() => openAuth('register')}>
-                  Inscription
-                </button>
-                <button type="button" className={authMode === 'forgot' ? 'active' : ''} onClick={() => openAuth('forgot')}>
-                  Mdp oublie
-                </button>
-              </div>
-
-              <form className="auth-modal-form" onSubmit={handleAuthSubmit} noValidate>
-                {authMode === 'register' && (
-                  <>
-                    <label htmlFor="auth-modal-nom">
-                      <User size={14} /> Nom
-                    </label>
-                    <input
-                      id="auth-modal-nom"
-                      type="text"
-                      autoComplete="family-name"
-                      placeholder="Nom"
-                      value={formNom}
-                      onChange={(e) => setFormNom(e.target.value)}
-                    />
-                    <label htmlFor="auth-modal-prenom">
-                      <User size={14} /> Prenom
-                    </label>
-                    <input
-                      id="auth-modal-prenom"
-                      type="text"
-                      autoComplete="given-name"
-                      placeholder="Prenom"
-                      value={formPrenom}
-                      onChange={(e) => setFormPrenom(e.target.value)}
-                    />
-                  </>
-                )}
-
-                <label htmlFor="auth-modal-email">
-                  <Mail size={14} /> Email
-                </label>
-                <input
-                  id="auth-modal-email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="vous@domaine.com"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                />
-
-                {authMode !== 'forgot' && (
-                  <>
-                    <label htmlFor="auth-modal-password">
-                      <Lock size={14} /> Mot de passe
-                    </label>
-                    <input
-                      id="auth-modal-password"
-                      type="password"
-                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                      placeholder="••••••••"
-                      value={formPassword}
-                      onChange={(e) => setFormPassword(e.target.value)}
-                    />
-                  </>
-                )}
-
-                {authMode === 'login' && (
-                  <button type="button" className="auth-link-btn" onClick={() => openAuth('forgot')}>
-                    Mot de passe oublie ?
-                  </button>
-                )}
-
-                {authFormError && (
-                  <p className="auth-form-message auth-form-message--error" role="alert">
-                    {authFormError}
-                  </p>
-                )}
-                {authFormSuccess && (
-                  <p className="auth-form-message auth-form-message--success" role="status">
-                    {authFormSuccess}
-                  </p>
-                )}
-
-                <button className="auth-submit-main" type="submit" disabled={authSubmitting}>
-                  {authMode === 'login'
-                    ? 'Se connecter'
-                    : authMode === 'register'
-                      ? 'S inscrire'
-                      : 'Envoyer lien reset'}
-                  <ArrowRight size={17} />
-                </button>
-
-                {(authMode === 'login' || authMode === 'register') && (
-                  <a className="auth-google-btn" href="/api/auth/google">
-                    Continuer avec Google
-                  </a>
-                )}
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AuthModal
+        authMode={authMode}
+        authCardRef={authCardRef}
+        authSubmitting={authSubmitting}
+        authFormError={authFormError}
+        authFormSuccess={authFormSuccess}
+        formNom={formNom}
+        formPrenom={formPrenom}
+        formEmail={formEmail}
+        formPassword={formPassword}
+        onClose={closeAuth}
+        onOpenMode={(mode) => openAuth(mode)}
+        onSubmit={handleAuthSubmit}
+        setFormNom={setFormNom}
+        setFormPrenom={setFormPrenom}
+        setFormEmail={setFormEmail}
+        setFormPassword={setFormPassword}
+      />
     </div>
   )
 }
