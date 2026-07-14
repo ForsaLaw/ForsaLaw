@@ -85,8 +85,8 @@ public class AuditLogService {
     ) {
         return auditLogRepository.findForAdmin(
                 blankToNull(actorUserId),
-                clean(moduleName),
-                clean(action),
+                toLikePatternLower(moduleName),
+                toLikePatternLower(action),
                 toUpperOrNull(method),
                 httpStatus,
                 pageable
@@ -96,6 +96,11 @@ public class AuditLogService {
     private String toUpperOrNull(String value) {
         String cleaned = clean(value);
         return cleaned == null ? null : cleaned.toUpperCase();
+    }
+
+    private String toLikePatternLower(String value) {
+        String cleaned = clean(value);
+        return cleaned == null ? null : "%" + cleaned.toLowerCase() + "%";
     }
 
     @Transactional(readOnly = true)

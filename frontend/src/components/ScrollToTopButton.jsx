@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import scalesImg from '../assets/scroll-to-top-scales.png'
-import './ScrollToTopButton.css'
+import '../styles/ScrollToTopButton.css'
 
 const SCROLL_THRESHOLD = 320
 
