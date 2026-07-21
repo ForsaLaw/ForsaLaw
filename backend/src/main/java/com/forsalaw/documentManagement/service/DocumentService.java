@@ -4,6 +4,7 @@ import com.forsalaw.documentManagement.entity.*;
 import com.forsalaw.documentManagement.model.*;
 import com.forsalaw.documentManagement.repository.DocumentAccessLogRepository;
 import com.forsalaw.documentManagement.repository.DocumentMetadataRepository;
+import com.forsalaw.messengerManagement.service.ClamAvScanService;
 import com.forsalaw.userManagement.entity.User;
 import com.forsalaw.userManagement.repository.UserRepository;
 import com.forsalaw.userManagement.service.IdSequenceService;
@@ -42,6 +43,8 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final IdSequenceService idSequenceService;
     private final HashingService hashingService;
+    private final DocumentFileValidator fileValidator;
+    private final ClamAvScanService clamAvScanService;
 
     // ─── Upload ──────────────────────────────────────────────────────────────
 
@@ -59,19 +62,28 @@ public class DocumentService {
         Path emplacement = Paths.get(dossierDocuments).toAbsolutePath().normalize();
         Files.createDirectories(emplacement);
 
-        // 2. Générer un nom de stockage unique pour éviter les conflits
+        // 2. Valider le fichier : extension sur liste blanche + vrai type MIME (Tika, anti-spoof).
+        //    Rejette par ex. un .jsp renommé .pdf. Retourne l'extension validée (ex. ".pdf").
         String nomOriginal = fichier.getOriginalFilename();
-        String extension = extraireExtension(nomOriginal);
+        String extension = fileValidator.validateAndResolveExtension(fichier);
+
+        // 3. Analyse antivirus (ClamAV). Activé et injoignable => scanBytes renvoie false => rejet (fail-closed).
+        if (!clamAvScanService.scanBytes(fichier.getBytes())) {
+            throw new DocumentFileValidator.InvalidFileException(
+                    "Le fichier a été rejeté par l'analyse antivirus ou l'analyse est indisponible.");
+        }
+
+        // 4. Nom de stockage unique basé UNIQUEMENT sur l'extension validée (nom d'origine ignoré).
         String nomStockage = UUID.randomUUID().toString() + extension;
         Path cibleFichier = emplacement.resolve(nomStockage);
 
-        // 3. Calculer le hash SHA-256 AVANT de stocker (pour garantir l'intégrité)
+        // 5. Calculer le hash SHA-256 AVANT de stocker (pour garantir l'intégrité)
         String hashSha256 = hashingService.calculerHashSha256(fichier.getInputStream());
 
-        // 4. Copier le fichier sur le disque
+        // 6. Copier le fichier sur le disque
         Files.copy(fichier.getInputStream(), cibleFichier, StandardCopyOption.REPLACE_EXISTING);
 
-        // 5. Enregistrer les métadonnées en base de données
+        // 7. Enregistrer les métadonnées en base de données
         DocumentMetadata doc = new DocumentMetadata();
         doc.setId(idSequenceService.generateNextId("DOC"));
         doc.setDeposeur(deposeur);
@@ -86,7 +98,7 @@ public class DocumentService {
         doc.setSupprime(false);
         doc = documentRepository.save(doc);
 
-        // 6. Tracer l'action d'upload dans le journal d'audit
+        // 8. Tracer l'action d'upload dans le journal d'audit
         enregistrerLog(doc, deposeur, ActionDocument.UPLOAD, servletRequest, null, null);
 
         return toDTO(doc);
@@ -286,13 +298,6 @@ public class DocumentService {
         return documentRepository.findById(documentId)
                 .filter(d -> !d.isSupprime())
                 .orElseThrow(() -> new IllegalArgumentException("Document introuvable ou supprimé."));
-    }
-
-    private String extraireExtension(String nomFichier) {
-        if (nomFichier != null && nomFichier.contains(".")) {
-            return nomFichier.substring(nomFichier.lastIndexOf("."));
-        }
-        return "";
     }
 
     private DocumentMetadataDTO toDTO(DocumentMetadata doc) {
