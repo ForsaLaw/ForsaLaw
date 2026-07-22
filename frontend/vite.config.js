@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // sockjs-client reference `global` ; on le mappe sur globalThis au build (remplace l'ancien
+  // shim runtime `window.global = window` de main.jsx).
+  define: {
+    global: 'globalThis',
+  },
   server: {
     port: 3000,
     proxy: {
@@ -11,6 +16,13 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
+      },
+      // WebSocket STOMP/SockJS : proxifie /ws vers l'API (ws:true pour l'upgrade WebSocket).
+      '/ws': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
       },
       // Si une redirection relative /oauth2/... atteint le navigateur sur le port du front, on proxifie vers l'API.
       '/oauth2': {

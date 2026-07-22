@@ -28,8 +28,8 @@ public class GoogleOAuth2UserService {
         String normalizedEmail = email.trim().toLowerCase();
 
         return userRepository.findByEmail(normalizedEmail).map(existing -> {
+            // Reactive le compte ; le role existant (provisionne en base) n'est jamais ecrase au login.
             existing.setActif(true);
-            applyRoleOnOAuthLogin(existing, normalizedEmail);
             return userRepository.save(existing);
         }).orElseGet(() -> {
             User user = new User();
@@ -39,7 +39,8 @@ public class GoogleOAuth2UserService {
             user.setPrenom(resolvePrenom(oauthUser));
             // Compte OAuth2 : mot de passe local non utilise
             user.setMotDePasse("{noop}GOOGLE_OAUTH2_ACCOUNT");
-            user.setRoleUser(resolveRoleForEmail(normalizedEmail));
+            // Premiere connexion Google => CLIENT. Les elevations de role se font en base / via admin.
+            user.setRoleUser(RoleUser.client);
             user.setActif(true);
             return userRepository.save(user);
         });
@@ -89,28 +90,5 @@ public class GoogleOAuth2UserService {
             return parts[0];
         }
         return "User";
-    }
-
-    private RoleUser resolveRoleForEmail(String email) {
-        if (email.endsWith("@forsalaw") || email.endsWith("@forsalaw.com")) {
-            return RoleUser.admin;
-        }
-        return RoleUser.client;
-    }
-
-    /**
-     * Ne pas ecraser le role {@code avocat} (ou {@code admin}) a chaque login Google :
-     * sinon les comptes valides par l'admin redeviennent {@code client} dans {@code users}.
-     */
-    private void applyRoleOnOAuthLogin(User existing, String normalizedEmail) {
-        RoleUser fromEmail = resolveRoleForEmail(normalizedEmail);
-        if (fromEmail == RoleUser.admin) {
-            existing.setRoleUser(RoleUser.admin);
-            return;
-        }
-        if (existing.getRoleUser() == RoleUser.avocat || existing.getRoleUser() == RoleUser.admin) {
-            return;
-        }
-        existing.setRoleUser(fromEmail);
     }
 }
