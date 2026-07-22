@@ -22,10 +22,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-      - name: Build
-        run: mvn -q -B compile
-      - name: Tests
-        run: mvn -q -B test -DskipTests  # Retirer -DskipTests quand les tests seront prêts
+      - name: Build & tests
+        # Les tests d'integration Testcontainers demarrent un conteneur PostgreSQL ;
+        # le runner ubuntu-latest fournit un daemon Docker.
+        run: mvn -B verify
 
   frontend:
     name: Frontend (React/Vite)
