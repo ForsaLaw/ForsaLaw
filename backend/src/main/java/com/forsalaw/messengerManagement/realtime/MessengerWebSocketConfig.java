@@ -13,7 +13,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @RequiredArgsConstructor
 public class MessengerWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
+    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     private final MessengerStompChannelInterceptor stompChannelInterceptor;
 
     @Override
@@ -24,15 +24,16 @@ public class MessengerWebSocketConfig implements WebSocketMessageBrokerConfigure
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Handshake ouvert (permitAll cote SecurityConfig) ; l'authentification JWT se fait
+        // sur la frame STOMP CONNECT (StompAuthChannelInterceptor), plus dans l'URL du handshake.
         registry.addEndpoint("/ws")
-                .setHandshakeHandler(new MessengerPrincipalHandshakeHandler())
-                .addInterceptors(jwtHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(stompChannelInterceptor);
+        // Ordre important : authentification (frame CONNECT) d'abord, puis controle d'acces (SUBSCRIBE).
+        registration.interceptors(stompAuthChannelInterceptor, stompChannelInterceptor);
     }
 }

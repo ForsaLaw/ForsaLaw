@@ -4,7 +4,7 @@
  * Connects when the user has a valid JWT token, disconnects on logout.
  *
  * Backend endpoints:
- *   SockJS endpoint : /ws?token={jwt}
+ *   SockJS endpoint : /ws  (JWT sent in the STOMP CONNECT frame's Authorization header)
  *   App destination prefix: /app
  *   Broker topic prefix    : /topic
  *
@@ -55,7 +55,10 @@ export function WebSocketProvider({ children }) {
     }
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`/ws?token=${encodeURIComponent(token)}`),
+      // Le token n'est plus dans l'URL (fuite dans les logs/historique) : il est envoye dans
+      // l'en-tete Authorization de la frame STOMP CONNECT, lue cote backend par un ChannelInterceptor.
+      webSocketFactory: () => new SockJS('/ws'),
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,

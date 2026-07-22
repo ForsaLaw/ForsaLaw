@@ -1,4 +1,3 @@
-if (typeof window !== 'undefined') window.global = window
 import './index.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -41,7 +40,7 @@ async function boot() {
   }
 
   try {
-    await import('./i18n.js')
+    const { i18nReady } = await import('./i18n.js')
     const [
       { BrowserRouter },
       { default: App },
@@ -55,6 +54,9 @@ async function boot() {
       import('./context/AuthContext.jsx'),
       import('./context/WebSocketContext.jsx'),
     ])
+
+    // Attendre le chargement de la langue par defaut (fr) avant le premier rendu.
+    await i18nReady
 
     createRoot(rootEl).render(
       <StrictMode>
