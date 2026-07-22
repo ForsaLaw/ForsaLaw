@@ -1,11 +1,32 @@
 const express = require('express');
+const crypto = require('crypto');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 
 const app = express();
 const port = 3099;
 
+// Secret partage avec le backend Java. Obligatoire : le bridge refuse de demarrer sans (fail-fast).
+const BRIDGE_TOKEN = process.env.WHATSAPP_BRIDGE_TOKEN;
+if (!BRIDGE_TOKEN || BRIDGE_TOKEN.length < 16) {
+    console.error('FATAL: WHATSAPP_BRIDGE_TOKEN manquant ou trop court (>= 16 caracteres requis). Bridge non demarre.');
+    process.exit(1);
+}
+
 app.use(express.json());
+
+// Authentification : toute requete doit presenter "Authorization: Bearer <WHATSAPP_BRIDGE_TOKEN>".
+app.use((req, res, next) => {
+    const header = req.headers['authorization'] || '';
+    const expected = `Bearer ${BRIDGE_TOKEN}`;
+    const provided = Buffer.from(header);
+    const reference = Buffer.from(expected);
+    // Comparaison a temps constant (evite les attaques temporelles) ; longueurs egales requises.
+    if (provided.length !== reference.length || !crypto.timingSafeEqual(provided, reference)) {
+        return res.status(401).json({ error: 'Non autorise.' });
+    }
+    next();
+});
 
 let qrCodeData = null;
 let isConnected = false;

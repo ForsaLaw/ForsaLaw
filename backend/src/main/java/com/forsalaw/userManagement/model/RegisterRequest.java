@@ -2,6 +2,7 @@ package com.forsalaw.userManagement.model;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,6 +25,10 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Le mot de passe est requis")
-    @Size(min = 6, max = 100, message = "Le mot de passe doit contenir entre 6 et 100 caractères")
+    @Size(max = 100, message = "Le mot de passe ne doit pas dépasser 100 caractères")
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
+            message = "Le mot de passe doit contenir au moins 8 caractères, dont au moins une lettre et un chiffre"
+    )
     private String motDePasse;
 }

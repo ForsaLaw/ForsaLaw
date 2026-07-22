@@ -32,17 +32,21 @@ public class AuthService {
     private final UnlockAccountEmailService unlockAccountEmailService;
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // Normaliser l'email AVANT le controle d'unicite : sinon "  Foo@Bar.com" passe le
+        // existsByEmail (compare le brut) puis est enregistre normalise => doublons possibles.
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("Un compte existe déjà avec cet email.");
         }
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
         User user = new User();
         user.setId(userService.generateNextId("USR"));
         user.setNom(request.getNom());
         user.setPrenom(request.getPrenom());
         user.setEmail(normalizedEmail);
         user.setMotDePasse(passwordEncoder.encode(request.getMotDePasse()));
-        user.setRoleUser(resolveRoleForEmail(normalizedEmail));
+        // Les inscriptions publiques sont toujours CLIENT. Les admins/avocats sont provisionnes
+        // separement (endpoint admin dedie / base de donnees), jamais via le domaine de l'email.
+        user.setRoleUser(RoleUser.client);
         user.setActif(true);
         user = userRepository.save(user);
         String token = jwtService.generateToken(user.getEmail(), user.getRoleUser().name());
@@ -123,12 +127,5 @@ public class AuthService {
                 user.getPrenom(),
                 user.getRoleUser()
         );
-    }
-
-    private RoleUser resolveRoleForEmail(String email) {
-        if (email.endsWith("@forsalaw") || email.endsWith("@forsalaw.com")) {
-            return RoleUser.admin;
-        }
-        return RoleUser.client;
     }
 }
