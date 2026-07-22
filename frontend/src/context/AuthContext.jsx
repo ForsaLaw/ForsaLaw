@@ -1,8 +1,25 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { jwtDecode } from 'jwt-decode'
 import * as authApi from '../api/auth.js'
 import { fetchCurrentUser } from '../api/client.js'
 
 const STORAGE_KEY = 'forsalaw.auth'
+
+/** ms restant avant expiration du JWT ; <= 0 (ou token invalide) => expiré. */
+function millisUntilExpiry(token) {
+  if (!token) return -1
+  try {
+    const { exp } = jwtDecode(token)
+    if (typeof exp !== 'number') return -1
+    return exp * 1000 - Date.now()
+  } catch {
+    return -1
+  }
+}
+
+function isTokenValid(token) {
+  return millisUntilExpiry(token) > 0
+}
 
 function loadStored() {
   try {
@@ -10,6 +27,11 @@ function loadStored() {
     if (!raw) return { token: null, user: null }
     const parsed = JSON.parse(raw)
     if (parsed && typeof parsed.token === 'string' && parsed.user && typeof parsed.user.email === 'string') {
+      // Rejeter d'emblee un JWT expire : purge le stockage et demarre deconnecte.
+      if (!isTokenValid(parsed.token)) {
+        localStorage.removeItem(STORAGE_KEY)
+        return { token: null, user: null }
+      }
       return { token: parsed.token, user: parsed.user }
     }
     return { token: null, user: null }
@@ -82,6 +104,19 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     persist({ token: null, user: null })
   }, [persist])
+
+  // Deconnexion automatique a l'expiration exacte du JWT (sans attendre le prochain appel API).
+  useEffect(() => {
+    if (!token) return undefined
+    const remaining = millisUntilExpiry(token)
+    if (remaining <= 0) {
+      logout()
+      return undefined
+    }
+    // setTimeout est borne a ~24,8 jours (int 32 bits) ; nos JWT expirent bien avant.
+    const timerId = setTimeout(logout, remaining)
+    return () => clearTimeout(timerId)
+  }, [token, logout])
 
   const completeOAuthLogin = useCallback(
     async (oauthToken) => {
