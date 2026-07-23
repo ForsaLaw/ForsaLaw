@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,8 +42,6 @@ class RendezVousClientControllerSecurityTest {
     @MockBean UserRepository userRepository;
     @MockBean OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     @MockBean ClientRegistrationRepository clientRegistrationRepository;
-    // ForsaLawApplication declare un CommandLineRunner databaseFix(JdbcTemplate) : satisfaire la dependance.
-    @MockBean JdbcTemplate jdbcTemplate;
 
     @Test
     void unauthenticatedRequest_toRendezvous_returns401() throws Exception {
