@@ -6,6 +6,7 @@ import com.forsalaw.rdvManagement.repository.RendezVousRepository;
 import com.forsalaw.rdvManagement.service.RdvNotificationEmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,7 @@ public class RdvReminderScheduler {
 
     /** Tous les jours a 8h00 (fuseau configure). */
     @Scheduled(cron = "0 0 8 * * *", zone = "${forsalaw.notifications.timezone:Africa/Tunis}")
+    @SchedulerLock(name = "rdvReminderJ1", lockAtMostFor = "PT9M", lockAtLeastFor = "PT1M")
     @Transactional
     public void envoyerRappelsJ1() {
         ZoneId zone = ZoneId.of(notificationZoneId);
@@ -55,6 +57,7 @@ public class RdvReminderScheduler {
 
     /** Toutes les 15 minutes : RDV confirmes dont l'heure de debut est dans ~55–65 minutes. */
     @Scheduled(cron = "0 */15 * * * *", zone = "${forsalaw.notifications.timezone:Africa/Tunis}")
+    @SchedulerLock(name = "rdvReminderH1", lockAtMostFor = "PT9M", lockAtLeastFor = "PT1M")
     @Transactional
     public void envoyerRappelsH1() {
         ZoneId zone = ZoneId.of(notificationZoneId);
