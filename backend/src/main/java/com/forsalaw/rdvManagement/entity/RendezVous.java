@@ -56,10 +56,13 @@ public class RendezVous {
     @Column(length = 1000)
     private String meetingUrl;
 
-    @Column(nullable = false, updatable = false)
+    // Noms de colonnes explicites : la strategie CamelCaseToUnderscores mappe "dateMiseAJour"
+    // vers "date_mise_ajour" (pas de _ entre majuscules consecutives AJ), ce qui ne correspond
+    // pas au baseline V0 (date_mise_a_jour). On fige donc les noms ici.
+    @Column(name = "date_creation", nullable = false, updatable = false)
     private OffsetDateTime dateCreation;
 
-    @Column(nullable = false)
+    @Column(name = "date_mise_a_jour", nullable = false)
     private OffsetDateTime dateMiseAJour;
 
     @Column(name = "rappel_j1_envoye", nullable = false)
