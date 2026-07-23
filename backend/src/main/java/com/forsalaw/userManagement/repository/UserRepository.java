@@ -1,5 +1,6 @@
 package com.forsalaw.userManagement.repository;
 
+import com.forsalaw.userManagement.entity.RoleUser;
 import com.forsalaw.userManagement.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,8 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, String> {
 
     boolean existsByEmail(String email);
+
+    boolean existsByRoleUser(RoleUser roleUser);
 
     Optional<User> findByEmail(String email);
 
