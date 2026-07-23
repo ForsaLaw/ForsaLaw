@@ -116,6 +116,10 @@ class RendezVousDstIntegrationTest extends AbstractIntegrationTest {
         r.setCreePar(CreePar.AVOCAT);
         r.setDateHeureDebut(debut);
         r.setDateHeureFin(debut.plusMinutes(45));
+        // ID pre-assigne => save() passe par merge(), qui ne declenche pas @PrePersist ici :
+        // on renseigne explicitement les timestamps d'audit non-null (hors sujet du test).
+        r.setDateCreation(OffsetDateTime.now());
+        r.setDateMiseAJour(OffsetDateTime.now());
         return r;
     }
 }
