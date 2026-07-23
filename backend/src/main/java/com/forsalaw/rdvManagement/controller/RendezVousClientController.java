@@ -16,7 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO;
 
@@ -34,8 +34,8 @@ public class RendezVousClientController {
     @GetMapping("/avocats/{idAvocat}/creneaux-disponibles")
     public ResponseEntity<CreneauxDisponiblesResponse> listerCreneauxDisponibles(
             @PathVariable String idAvocat,
-            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) LocalDateTime debut,
-            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) LocalDateTime fin
+            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) OffsetDateTime debut,
+            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) OffsetDateTime fin
     ) {
         return ResponseEntity.ok(avocatAgendaService.listerCreneauxDisponiblesPourAvocat(idAvocat, debut, fin));
     }

@@ -133,7 +133,7 @@ public class AvocatAgendaService {
     }
 
     @Transactional(readOnly = true)
-    public CreneauxDisponiblesResponse listerCreneauxDisponiblesPourAvocat(String idAvocat, LocalDateTime debut, LocalDateTime fin) {
+    public CreneauxDisponiblesResponse listerCreneauxDisponiblesPourAvocat(String idAvocat, OffsetDateTime debut, OffsetDateTime fin) {
         Avocat avocat = avocatRepository.findById(idAvocat)
                 .orElseThrow(() -> new IllegalArgumentException("Avocat non trouve."));
         if (!avocat.isActif()) {
@@ -183,7 +183,7 @@ public class AvocatAgendaService {
     /**
      * Si l'agenda est actif et qu'il existe au moins une plage : valide le creneau propose.
      */
-    public void validerPropositionCreneau(String avocatId, String excludeRdvId, LocalDateTime debut, LocalDateTime fin) {
+    public void validerPropositionCreneau(String avocatId, String excludeRdvId, OffsetDateTime debut, OffsetDateTime fin) {
         AvocatAgendaConfig cfg = agendaConfigRepository.findById(avocatId).orElse(null);
         if (cfg == null || !cfg.isAgendaActif()) {
             return;
@@ -204,10 +204,10 @@ public class AvocatAgendaService {
         if (minutes != duree) {
             throw new IllegalArgumentException("La duree du creneau doit etre de " + duree + " minutes (agenda actif).");
         }
-        ZonedDateTime zd = debut.atZone(zone);
+        ZonedDateTime zd = debut.atZoneSameInstant(zone);
         LocalDate day = zd.toLocalDate();
         LocalTime t0 = zd.toLocalTime();
-        LocalTime t1 = fin.atZone(zone).toLocalTime();
+        LocalTime t1 = fin.atZoneSameInstant(zone).toLocalTime();
         if (estJourEnException(day, exceptionRepository.findByAvocat_IdOrderByDateDebutAsc(avocatId))) {
             throw new IllegalArgumentException("Ce jour est marque comme indisponible (conge / exception).");
         }
@@ -224,7 +224,7 @@ public class AvocatAgendaService {
             if (r.getDateHeureDebut() == null || r.getDateHeureFin() == null) {
                 continue;
             }
-            LocalDateTime rEndBuf = r.getDateHeureFin().plusMinutes(buffer);
+            OffsetDateTime rEndBuf = r.getDateHeureFin().plusMinutes(buffer);
             if (debut.isBefore(rEndBuf) && fin.isAfter(r.getDateHeureDebut())) {
                 throw new IllegalArgumentException("Ce creneau chevauche un autre rendez-vous (avec marge de " + buffer + " min).");
             }
@@ -235,8 +235,8 @@ public class AvocatAgendaService {
             String avocatId,
             AvocatAgendaConfig cfg,
             ZoneId zone,
-            LocalDateTime debut,
-            LocalDateTime fin
+            OffsetDateTime debut,
+            OffsetDateTime fin
     ) {
         int duree = cfg.getDureeCreneauMinutes();
         int buffer = cfg.getBufferMinutes();
@@ -245,16 +245,14 @@ public class AvocatAgendaService {
             return List.of();
         }
         List<AvocatAgendaException> exceptions = exceptionRepository.findByAvocat_IdOrderByDateDebutAsc(avocatId);
-        ZonedDateTime zStart = debut.atZone(zone);
-        ZonedDateTime zEnd = fin.atZone(zone);
+        ZonedDateTime zStart = debut.atZoneSameInstant(zone);
+        ZonedDateTime zEnd = fin.atZoneSameInstant(zone);
         LocalDate first = zStart.toLocalDate();
         LocalDate last = zEnd.toLocalDate();
-        LocalDateTime now = LocalDateTime.now(zone);
+        OffsetDateTime now = OffsetDateTime.now(zone);
 
-        LocalDateTime rangeStartLdt = debut;
-        LocalDateTime rangeEndLdt = fin;
         List<RendezVous> rdvs = rendezVousRepository.findOccupyingForAvocatInRange(
-                avocatId, STATUTS_OCCUPES, rangeStartLdt.minusHours(24), rangeEndLdt.plusHours(24)
+                avocatId, STATUTS_OCCUPES, debut.minusHours(24), fin.plusHours(24)
         );
 
         List<CreneauDisponibleDTO> out = new ArrayList<>();
@@ -288,14 +286,14 @@ public class AvocatAgendaService {
                         cursor = overlap.end();
                         continue;
                     }
-                    LocalDateTime ldtStart = cursor.toLocalDateTime();
-                    LocalDateTime ldtEnd = slotEnd.toLocalDateTime();
-                    if (ldtEnd.isBefore(rangeStartLdt) || ldtStart.isAfter(rangeEndLdt)) {
+                    OffsetDateTime slotStart = cursor.toOffsetDateTime();
+                    OffsetDateTime slotEndOdt = slotEnd.toOffsetDateTime();
+                    if (slotEndOdt.isBefore(debut) || slotStart.isAfter(fin)) {
                         cursor = slotEnd.plusMinutes(buffer);
                         continue;
                     }
-                    if (!ldtStart.isBefore(now)) {
-                        out.add(new CreneauDisponibleDTO(ldtStart, ldtEnd));
+                    if (!slotStart.isBefore(now)) {
+                        out.add(new CreneauDisponibleDTO(slotStart, slotEndOdt));
                     }
                     cursor = slotEnd.plusMinutes(buffer);
                 }
@@ -321,8 +319,8 @@ public class AvocatAgendaService {
             if (r.getDateHeureDebut() == null || r.getDateHeureFin() == null) {
                 continue;
             }
-            ZonedDateTime a = r.getDateHeureDebut().atZone(zone);
-            ZonedDateTime b = r.getDateHeureFin().atZone(zone).plusMinutes(bufferMinutes);
+            ZonedDateTime a = r.getDateHeureDebut().atZoneSameInstant(zone);
+            ZonedDateTime b = r.getDateHeureFin().atZoneSameInstant(zone).plusMinutes(bufferMinutes);
             ZonedDateTime clipStart = a.isBefore(dayStart) ? dayStart : a;
             ZonedDateTime clipEnd = b.isAfter(dayEnd) ? dayEnd : b;
             if (clipStart.isBefore(clipEnd)) {

@@ -1,8 +1,8 @@
 package com.forsalaw.rdvManagement.model;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record CreneauDisponibleDTO(
-        LocalDateTime debut,
-        LocalDateTime fin
+        OffsetDateTime debut,
+        OffsetDateTime fin
 ) {}

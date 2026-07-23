@@ -26,8 +26,8 @@ public class AuthExceptionHandler {
     public ResponseEntity<Map<String, String>> handleUnreadableJson(HttpMessageNotReadableException e) {
         Throwable cause = e.getMostSpecificCause();
         String detail = cause != null && cause.getMessage() != null ? cause.getMessage() : "";
-        String message = "JSON invalide ou format de date refuse. Pour dateHeureDebut/dateHeureFin, utilisez un format sans fuseau, "
-                + "ex. \"2026-03-27T10:00:00\" (pas de \"Z\" a la fin). "
+        String message = "JSON invalide ou format de date refuse. Pour dateHeureDebut/dateHeureFin, utilisez un format ISO-8601 "
+                + "avec decalage horaire, ex. \"2026-03-27T10:00:00+01:00\" ou \"2026-03-27T09:00:00Z\". "
                 + (detail.isEmpty() ? "" : "Detail: " + detail);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", message));
     }

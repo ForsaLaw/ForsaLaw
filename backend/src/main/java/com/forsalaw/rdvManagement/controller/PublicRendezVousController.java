@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO;
 
@@ -26,8 +26,8 @@ public class PublicRendezVousController {
     @GetMapping("/avocats/{idAvocat}/creneaux-disponibles")
     public ResponseEntity<CreneauxDisponiblesResponse> listerCreneauxDisponiblesPublic(
             @PathVariable String idAvocat,
-            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) LocalDateTime debut,
-            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) LocalDateTime fin
+            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) OffsetDateTime debut,
+            @RequestParam @DateTimeFormat(iso = ISO.DATE_TIME) OffsetDateTime fin
     ) {
         return ResponseEntity.ok(avocatAgendaService.listerCreneauxDisponiblesPourAvocat(idAvocat, debut, fin));
     }

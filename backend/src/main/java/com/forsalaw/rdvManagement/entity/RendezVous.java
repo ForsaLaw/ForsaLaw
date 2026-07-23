@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "rendez_vous")
@@ -34,10 +34,10 @@ public class RendezVous {
     private String motifConsultation;
 
     @Column(name = "date_heure_debut")
-    private LocalDateTime dateHeureDebut;
+    private OffsetDateTime dateHeureDebut;
 
     @Column(name = "date_heure_fin")
-    private LocalDateTime dateHeureFin;
+    private OffsetDateTime dateHeureFin;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -57,10 +57,10 @@ public class RendezVous {
     private String meetingUrl;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime dateCreation;
+    private OffsetDateTime dateCreation;
 
     @Column(nullable = false)
-    private LocalDateTime dateMiseAJour;
+    private OffsetDateTime dateMiseAJour;
 
     @Column(name = "rappel_j1_envoye", nullable = false)
     private boolean rappelJ1Envoye = false;
@@ -70,13 +70,13 @@ public class RendezVous {
 
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         dateCreation = now;
         dateMiseAJour = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        dateMiseAJour = LocalDateTime.now();
+        dateMiseAJour = OffsetDateTime.now();
     }
 }

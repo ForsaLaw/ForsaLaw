@@ -246,23 +246,23 @@
     );
 
     create table rendez_vous (
-        idRendezVous varchar(20) not null,
-        commentaireAvocat varchar(1000),
-        creePar varchar(20) not null check (creePar in ('CLIENT','AVOCAT')),
-        dateCreation timestamp(6) not null,
+        id_rendez_vous varchar(20) not null,
+        commentaire_avocat varchar(1000),
+        cree_par varchar(20) not null check (cree_par in ('CLIENT','AVOCAT')),
+        date_creation timestamp(6) not null,
         date_heure_debut timestamp(6),
         date_heure_fin timestamp(6),
-        dateMiseAJour timestamp(6) not null,
-        meetingUrl varchar(1000),
-        motifConsultation varchar(1000),
-        raisonAnnulation varchar(1000),
+        date_mise_a_jour timestamp(6) not null,
+        meeting_url varchar(1000),
+        motif_consultation varchar(1000),
+        raison_annulation varchar(1000),
         rappel_h1_envoye boolean not null,
         rappel_j1_envoye boolean not null,
-        statutRendezVous varchar(20) not null check (statutRendezVous in ('EN_ATTENTE','PROPOSE','CONFIRME','ANNULE')),
-        typeRendezVous varchar(20) not null check (typeRendezVous in ('EN_LIGNE','CABINET','TELEPHONE')),
+        statut_rendez_vous varchar(20) not null check (statut_rendez_vous in ('EN_ATTENTE','PROPOSE','CONFIRME','ANNULE')),
+        type_rendez_vous varchar(20) not null check (type_rendez_vous in ('EN_LIGNE','CABINET','TELEPHONE')),
         avocat_id varchar(20) not null,
         client_user_id varchar(20) not null,
-        primary key (idRendezVous)
+        primary key (id_rendez_vous)
     );
 
     create table user_notification_preferences (
@@ -289,7 +289,7 @@
         password_reset_token varchar(120),
         prenom varchar(255) not null,
         profile_photo_document_id varchar(20),
-        roleUser varchar(255) not null check (roleUser in ('client','avocat','admin')),
+        role_user varchar(255) not null check (role_user in ('client','avocat','admin')),
         telephone varchar(20),
         primary key (id)
     );
