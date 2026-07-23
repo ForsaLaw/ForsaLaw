@@ -105,8 +105,9 @@ export default function CalendarPage() {
        const cd = new Date(year, month, i)
        const iso = toLocalIsoDate(cd)
        
-       // Filter appointments for this specific day
-       const dayAppts = appointments.filter(a => a.dateHeureDebut && a.dateHeureDebut.startsWith(iso))
+       // dateHeureDebut est un instant (ISO-8601 avec fuseau) : comparer la date LOCALE,
+       // et non le prefixe brut de la chaine (qui peut etre en UTC et tomber un autre jour).
+       const dayAppts = appointments.filter(a => a.dateHeureDebut && toLocalIsoDate(new Date(a.dateHeureDebut)) === iso)
        
        days.push({
          id: `curr-${i}`,
