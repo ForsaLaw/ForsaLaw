@@ -1,54 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { jwtDecode } from 'jwt-decode'
 import * as authApi from '../api/auth.js'
-import { fetchCurrentUser } from '../api/client.js'
+import { fetchCurrentUser, initCsrfToken } from '../api/client.js'
 
-const STORAGE_KEY = 'forsalaw.auth'
-
-/** ms restant avant expiration du JWT ; <= 0 (ou token invalide) => expiré. */
-function millisUntilExpiry(token) {
-  if (!token) return -1
-  try {
-    const { exp } = jwtDecode(token)
-    if (typeof exp !== 'number') return -1
-    return exp * 1000 - Date.now()
-  } catch {
-    return -1
-  }
-}
-
-function isTokenValid(token) {
-  return millisUntilExpiry(token) > 0
-}
-
-function loadStored() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { token: null, user: null }
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed.token === 'string' && parsed.user && typeof parsed.user.email === 'string') {
-      // Rejeter d'emblee un JWT expire : purge le stockage et demarre deconnecte.
-      if (!isTokenValid(parsed.token)) {
-        localStorage.removeItem(STORAGE_KEY)
-        return { token: null, user: null }
-      }
-      return { token: parsed.token, user: parsed.user }
-    }
-    return { token: null, user: null }
-  } catch {
-    return { token: null, user: null }
-  }
-}
-
-function mapAuthResponse(data) {
-  return {
-    id: data.id,
-    email: data.email,
-    nom: data.nom,
-    prenom: data.prenom,
-    roleUser: data.roleUser,
-  }
-}
+/**
+ * Auth state.
+ *
+ * The JWT now lives in an httpOnly cookie: JavaScript cannot read it, so there is nothing to
+ * persist in localStorage (which removes the XSS token-theft risk) and no `exp` to decode.
+ * The session is instead resolved from the server on load via GET /api/users/me — a 401 simply
+ * means "not logged in". Session expiry is enforced by the cookie's Max-Age and by the backend
+ * rejecting expired tokens.
+ *
+ * `token` is still exposed (always null) because many call sites pass it to the api helpers;
+ * a null token just means no Authorization header, and the cookie carries the credentials.
+ */
 
 function mapUserDto(dto) {
   return {
@@ -65,87 +30,89 @@ function mapUserDto(dto) {
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [{ token, user }, setSession] = useState(loadStored)
+  const [user, setUser] = useState(null)
+  // true until the initial "am I logged in?" probe finishes, so guarded routes don't flash.
+  const [bootstrapping, setBootstrapping] = useState(true)
 
-  const persist = useCallback((next) => {
-    setSession(next)
-    if (next.token && next.user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
+  const loadCurrentUser = useCallback(async () => {
+    try {
+      const me = await fetchCurrentUser()
+      const next = mapUserDto(me)
+      setUser(next)
+      return next
+    } catch {
+      // 401 / network error => treat as logged out.
+      setUser(null)
+      return null
     }
   }, [])
 
-  const setFromAuthResponse = useCallback(
-    (data) => {
-      persist({ token: data.token, user: mapAuthResponse(data) })
-    },
-    [persist],
-  )
+  // On mount: prime the CSRF cookie, then resolve the session from the auth cookie.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      await initCsrfToken()
+      await loadCurrentUser()
+      if (!cancelled) setBootstrapping(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadCurrentUser])
 
   const login = useCallback(
     async (body) => {
+      // The backend sets the httpOnly auth cookie on this response.
       const data = await authApi.login(body)
-      setFromAuthResponse(data)
+      await loadCurrentUser()
       return data
     },
-    [setFromAuthResponse],
+    [loadCurrentUser],
   )
 
   const register = useCallback(
     async (body) => {
       const data = await authApi.register(body)
-      setFromAuthResponse(data)
+      await loadCurrentUser()
       return data
     },
-    [setFromAuthResponse],
+    [loadCurrentUser],
   )
 
-  const logout = useCallback(() => {
-    persist({ token: null, user: null })
-  }, [persist])
-
-  // Deconnexion automatique a l'expiration exacte du JWT (sans attendre le prochain appel API).
-  useEffect(() => {
-    if (!token) return undefined
-    const remaining = millisUntilExpiry(token)
-    if (remaining <= 0) {
-      logout()
-      return undefined
+  const logout = useCallback(async () => {
+    try {
+      // Only the server can clear an httpOnly cookie.
+      await authApi.logout()
+    } catch {
+      /* clear local state regardless */
     }
-    // setTimeout est borne a ~24,8 jours (int 32 bits) ; nos JWT expirent bien avant.
-    const timerId = setTimeout(logout, remaining)
-    return () => clearTimeout(timerId)
-  }, [token, logout])
+    setUser(null)
+  }, [])
 
-  const completeOAuthLogin = useCallback(
-    async (oauthToken) => {
-      const me = await fetchCurrentUser(oauthToken)
-      persist({ token: oauthToken, user: mapUserDto(me) })
-    },
-    [persist],
-  )
+  /** Google OAuth2 callback: the cookie is already set by the backend redirect. */
+  const completeOAuthLogin = useCallback(async () => {
+    const next = await loadCurrentUser()
+    if (!next) {
+      throw new Error("Echec de la connexion Google : session introuvable.")
+    }
+    return next
+  }, [loadCurrentUser])
 
-  const refreshUser = useCallback(async () => {
-    if (!token) return null
-    const me = await fetchCurrentUser(token)
-    const nextUser = mapUserDto(me)
-    persist({ token, user: nextUser })
-    return nextUser
-  }, [token, persist])
+  const refreshUser = useCallback(() => loadCurrentUser(), [loadCurrentUser])
 
   const value = useMemo(
     () => ({
-      token,
+      token: null, // kept for compatibility: auth travels in the httpOnly cookie
       user,
-      isAuthenticated: Boolean(token && user),
+      isAuthenticated: Boolean(user),
+      bootstrapping,
       login,
       register,
       logout,
       completeOAuthLogin,
       refreshUser,
     }),
-    [token, user, login, register, logout, completeOAuthLogin, refreshUser],
+    [user, bootstrapping, login, register, logout, completeOAuthLogin, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,4 +1,4 @@
-import { authHeaders, parseApiError } from './client.js'
+import { apiFetch, authHeaders, parseApiError } from './client.js'
 
 async function jsonOrThrow(res) {
   if (!res.ok) throw new Error(await parseApiError(res))
@@ -6,14 +6,14 @@ async function jsonOrThrow(res) {
 }
 
 export async function listClientAppointments(token, { page = 0, size = 50 } = {}) {
-  const res = await fetch(`/api/rendezvous/mes-demandes?page=${page}&size=${size}`, {
+  const res = await apiFetch(`/api/rendezvous/mes-demandes?page=${page}&size=${size}`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
 }
 
 export async function createClientAppointmentRequest(token, avocatId, body) {
-  const res = await fetch(`/api/rendezvous/avocats/${encodeURIComponent(avocatId)}/demandes`, {
+  const res = await apiFetch(`/api/rendezvous/avocats/${encodeURIComponent(avocatId)}/demandes`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -23,7 +23,7 @@ export async function createClientAppointmentRequest(token, avocatId, body) {
 
 export async function listAvailableSlots(token, avocatId, debutIso, finIso) {
   const q = new URLSearchParams({ debut: debutIso, fin: finIso })
-  const res = await fetch(`/api/rendezvous/avocats/${encodeURIComponent(avocatId)}/creneaux-disponibles?${q.toString()}`, {
+  const res = await apiFetch(`/api/rendezvous/avocats/${encodeURIComponent(avocatId)}/creneaux-disponibles?${q.toString()}`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
@@ -31,17 +31,17 @@ export async function listAvailableSlots(token, avocatId, debutIso, finIso) {
 
 export async function listPublicAvailableSlots(avocatId, debutIso, finIso) {
   const q = new URLSearchParams({ debut: debutIso, fin: finIso })
-  const res = await fetch(`/api/rendezvous/public/avocats/${encodeURIComponent(avocatId)}/creneaux-disponibles?${q.toString()}`)
+  const res = await apiFetch(`/api/rendezvous/public/avocats/${encodeURIComponent(avocatId)}/creneaux-disponibles?${q.toString()}`)
   return jsonOrThrow(res)
 }
 
 export async function getPublicAgenda(avocatId) {
-  const res = await fetch(`/api/rendezvous/public/avocats/${encodeURIComponent(avocatId)}/agenda`)
+  const res = await apiFetch(`/api/rendezvous/public/avocats/${encodeURIComponent(avocatId)}/agenda`)
   return jsonOrThrow(res)
 }
 
 export async function clientAcceptProposal(token, rdvId) {
-  const res = await fetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/accepter-proposition`, {
+  const res = await apiFetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/accepter-proposition`, {
     method: 'PATCH',
     headers: authHeaders(token),
   })
@@ -49,7 +49,7 @@ export async function clientAcceptProposal(token, rdvId) {
 }
 
 export async function clientRefuseProposal(token, rdvId, raisonRefus) {
-  const res = await fetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/refuser-proposition`, {
+  const res = await apiFetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/refuser-proposition`, {
     method: 'PATCH',
     headers: authHeaders(token),
     body: JSON.stringify({ raisonRefus }),
@@ -58,7 +58,7 @@ export async function clientRefuseProposal(token, rdvId, raisonRefus) {
 }
 
 export async function clientCancelAppointment(token, rdvId, raisonAnnulation) {
-  const res = await fetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/annuler`, {
+  const res = await apiFetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/annuler`, {
     method: 'PATCH',
     headers: authHeaders(token),
     body: JSON.stringify({ raisonAnnulation }),
@@ -67,21 +67,21 @@ export async function clientCancelAppointment(token, rdvId, raisonAnnulation) {
 }
 
 export async function clientMeetingAccess(token, rdvId) {
-  const res = await fetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/meeting-access`, {
+  const res = await apiFetch(`/api/rendezvous/${encodeURIComponent(rdvId)}/meeting-access`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
 }
 
 export async function listLawyerAppointments(token, { page = 0, size = 50 } = {}) {
-  const res = await fetch(`/api/rendezvous/avocat/demandes-recues?page=${page}&size=${size}`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/demandes-recues?page=${page}&size=${size}`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
 }
 
 export async function lawyerProposeSlot(token, rdvId, body) {
-  const res = await fetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/proposer-creneau`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/proposer-creneau`, {
     method: 'PATCH',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -90,7 +90,7 @@ export async function lawyerProposeSlot(token, rdvId, body) {
 }
 
 export async function lawyerCancelAppointment(token, rdvId, raisonAnnulation) {
-  const res = await fetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/annuler`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/annuler`, {
     method: 'PATCH',
     headers: authHeaders(token),
     body: JSON.stringify({ raisonAnnulation }),
@@ -99,19 +99,19 @@ export async function lawyerCancelAppointment(token, rdvId, raisonAnnulation) {
 }
 
 export async function lawyerMeetingAccess(token, rdvId) {
-  const res = await fetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/meeting-access`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/${encodeURIComponent(rdvId)}/meeting-access`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
 }
 
 export async function getAgenda(token) {
-  const res = await fetch('/api/rendezvous/avocat/agenda', { headers: authHeaders(token) })
+  const res = await apiFetch('/api/rendezvous/avocat/agenda', { headers: authHeaders(token) })
   return jsonOrThrow(res)
 }
 
 export async function updateAgendaConfig(token, body) {
-  const res = await fetch('/api/rendezvous/avocat/agenda/config', {
+  const res = await apiFetch('/api/rendezvous/avocat/agenda/config', {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -120,7 +120,7 @@ export async function updateAgendaConfig(token, body) {
 }
 
 export async function addAgendaPlage(token, body) {
-  const res = await fetch('/api/rendezvous/avocat/agenda/plages', {
+  const res = await apiFetch('/api/rendezvous/avocat/agenda/plages', {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -129,7 +129,7 @@ export async function addAgendaPlage(token, body) {
 }
 
 export async function deleteAgendaPlage(token, idPlage) {
-  const res = await fetch(`/api/rendezvous/avocat/agenda/plages/${encodeURIComponent(idPlage)}`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/agenda/plages/${encodeURIComponent(idPlage)}`, {
     method: 'DELETE',
     headers: authHeaders(token),
   })
@@ -137,7 +137,7 @@ export async function deleteAgendaPlage(token, idPlage) {
 }
 
 export async function addAgendaException(token, body) {
-  const res = await fetch('/api/rendezvous/avocat/agenda/exceptions', {
+  const res = await apiFetch('/api/rendezvous/avocat/agenda/exceptions', {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -146,7 +146,7 @@ export async function addAgendaException(token, body) {
 }
 
 export async function deleteAgendaException(token, idException) {
-  const res = await fetch(`/api/rendezvous/avocat/agenda/exceptions/${encodeURIComponent(idException)}`, {
+  const res = await apiFetch(`/api/rendezvous/avocat/agenda/exceptions/${encodeURIComponent(idException)}`, {
     method: 'DELETE',
     headers: authHeaders(token),
   })

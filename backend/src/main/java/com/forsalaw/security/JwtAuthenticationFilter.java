@@ -29,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final JwtCookieService jwtCookieService;
 
     @Override
     protected void doFilterInternal(
@@ -36,21 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        // Source principale : cookie HttpOnly (le front n'a plus le JWT en JS).
+        // Repli : en-tete Authorization, conserve pour Swagger et les clients HTTP.
+        String token = jwtCookieService.readToken(request).orElseGet(() -> extractFromHeader(request));
 
-        if (authHeader == null || authHeader.isBlank()) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token;
-        if (authHeader.startsWith(BEARER_PREFIX)) {
-            token = authHeader.substring(BEARER_PREFIX.length()).trim();
-        } else {
-            // Tolere le format brut "Authorization: <jwt>" (certains clients Swagger/HTTP)
-            token = authHeader.trim();
-        }
-        if (token.isEmpty()) {
+        if (token == null || token.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -87,5 +78,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
+    }
+
+    /** JWT depuis l'en-tete Authorization (Swagger / clients HTTP), null si absent. */
+    private String extractFromHeader(HttpServletRequest request) {
+        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        if (authHeader == null || authHeader.isBlank()) {
+            return null;
+        }
+        if (authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length()).trim();
+        }
+        // Tolere le format brut "Authorization: <jwt>" (certains clients Swagger/HTTP)
+        return authHeader.trim();
     }
 }

@@ -2,7 +2,9 @@ package com.forsalaw.rdvManagement.controller;
 
 import com.forsalaw.rdvManagement.service.AvocatAgendaService;
 import com.forsalaw.rdvManagement.service.RendezVousService;
+import com.forsalaw.security.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.forsalaw.security.JwtAuthenticationFilter;
+import com.forsalaw.security.JwtCookieService;
 import com.forsalaw.security.JwtService;
 import com.forsalaw.security.OAuth2AuthenticationSuccessHandler;
 import com.forsalaw.security.SecurityConfig;
@@ -24,7 +26,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * une requete non authentifiee doit recevoir 401 (authenticationEntryPoint).
  */
 @WebMvcTest(RendezVousClientController.class)
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class})
+@Import({
+        SecurityConfig.class,
+        JwtAuthenticationFilter.class,
+        JwtCookieService.class,
+        HttpCookieOAuth2AuthorizationRequestRepository.class
+})
 @TestPropertySource(properties = {
         "forsalaw.cors.allowed-origins=http://localhost:3000",
         "DB_USERNAME=test",

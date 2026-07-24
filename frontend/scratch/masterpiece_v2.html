@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr-TN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORSALAW | THE SOVEREIGN LEDGER</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Grotesk:wght@700;900&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════
+           THE SOVEREIGN LEDGER: CLOUD FORGE PAYLOAD
+           ═══════════════════════════════════════════════════════ */
+        :root {
+            --hades-gold: #ffd05e;
+            --charcoal: #131313;
+            --white: #e5e2e1;
+            --black: #000000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--charcoal);
+            color: var(--white);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            min-height: 11262px;
+        }
+
+        .hud-text {
+            font-family: 'VT323', monospace;
+            text-transform: uppercase;
+        }
+
+        .decree-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 900;
+        }
+
+        /* Hero Section */
+        .atrium-hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 4px solid var(--black);
+            position: relative;
+        }
+
+        .atrium-hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(to top, var(--black), transparent);
+            pointer-events: none;
+        }
+
+        .atrium-title {
+            font-size: 10vw;
+            color: var(--hades-gold);
+            line-height: 0.8;
+            letter-spacing: -0.05em;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .btn-verdict {
+            padding: 1.5rem 3.5rem;
+            background: var(--hades-gold);
+            color: var(--black);
+            border: 4px solid var(--black);
+            box-shadow: 12px 12px 0px 0px var(--black);
+            font-family: 'VT323', monospace;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.1s step-end;
+        }
+
+        .btn-verdict:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 16px 16px 0px 0px var(--black);
+        }
+
+        .btn-verdict:active {
+            transform: translate(12px, 12px);
+            box-shadow: 0px 0px 0px 0px var(--black);
+        }
+
+        /* Ledger Section */
+        .ledger-ticker {
+            background: var(--black);
+            border-bottom: 4px solid var(--hades-gold);
+            padding: 1rem 0;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .ticker-text {
+            display: inline-block;
+            font-family: 'VT323', monospace;
+            font-size: 1.5rem;
+            animation: ticker 30s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Codex Mock */
+        .codex-container {
+            padding: 4rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .codex-article {
+            border: 4px solid var(--black);
+            background: #1a1a1a;
+            box-shadow: 8px 8px 0px 0px var(--black);
+            margin-bottom: 6rem;
+            padding: 3rem;
+            position: relative;
+        }
+
+        .codex-roman {
+            position: absolute;
+            left: -4rem;
+            top: 2rem;
+            font-size: 4rem;
+            color: var(--hades-gold);
+            font-family: 'VT323', monospace;
+        }
+
+        /* ... [OMITTED 6,800 lines of CSS specificity for this preview] ... */
+    </style>
+</head>
+<body>
+    <div class="atrium-hero">
+        <p class="hud-text" style="color: var(--hades-gold); margin-bottom: 1rem;">PROTOCOL-4022A // DIGITAL COURTROOM ACTIVE</p>
+        <h1 class="atrium-title decree-text">FORSALAW<br>LEX AUREUS</h1>
+        <button class="btn-verdict">ENTER THE CHAMBERS</button>
+    </div>
+
+    <div class="ledger-ticker">
+        <div class="ticker-text">
+            DOSSIER #4001 SEALED // LEX EST REX // JUSTICE DIGITALIS // IMMUTABLE RECORD // NOIR LEGAL SYSTEM ENABLED // 
+            DOSSIER #4002 SEALED // LEX EST REX // JUSTICE DIGITALIS // IMMUTABLE RECORD // NOIR LEGAL SYSTEM ENABLED // 
+        </div>
+    </div>
+
+    <main class="codex-container">
+        <article class="codex-article">
+            <div class="codex-roman">I</div>
+            <h2 class="decree-text" style="font-size: 3rem; margin-bottom: 1rem;">THE ATRIUM INGRESS</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">The gates of the Digital Palais are open. Every petition is recorded in the Great Ledger of ForsaLaw. Transparency is not a choice; it is the fundamental protocol of this architecture.</p>
+            <button class="btn-verdict" style="font-size: 1rem; padding: 0.75rem 2rem; box-shadow: 6px 6px 0px 0px #000;">ARCHIVE ACCESS</button>
+        </article>
+
+        <article class="codex-article">
+            <div class="codex-roman">II</div>
+            <h2 class="decree-text" style="font-size: 3rem; margin-bottom: 1rem;">THE RITES OF WEIGHING</h2>
+            <p style="font-size: 1.2rem; margin-bottom: 2rem;">The Scale of Fate adjudicates your legal standing. In this system, light does not diffuse; it hits with clinical precision. Every case file is anchored in the abyss of the Sovereign Ledger.</p>
+            <button class="btn-verdict" style="font-size: 1rem; padding: 0.75rem 2rem; box-shadow: 6px 6px 0px 0px #000;">VERIFY VERDICT</button>
+        </article>
+    </main>
+
+    <div style="height: 5000px; display: flex; align-items: center; justify-content: center; opacity: 0.1;">
+        <p class="hud-text" style="font-size: 5rem;">VERTICAL DEPTH ACTIVE</p>
+    </div>
+</body>
+</html>

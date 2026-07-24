@@ -15,6 +15,7 @@ public class MessengerWebSocketConfig implements WebSocketMessageBrokerConfigure
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     private final MessengerStompChannelInterceptor stompChannelInterceptor;
+    private final WebSocketCookieHandshakeInterceptor cookieHandshakeInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -26,7 +27,10 @@ public class MessengerWebSocketConfig implements WebSocketMessageBrokerConfigure
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Handshake ouvert (permitAll cote SecurityConfig) ; l'authentification JWT se fait
         // sur la frame STOMP CONNECT (StompAuthChannelInterceptor), plus dans l'URL du handshake.
+        // L'intercepteur de handshake ne fait que recopier le cookie HttpOnly dans les attributs
+        // de session, pour que la frame CONNECT puisse etre authentifiee sans JWT visible en JS.
         registry.addEndpoint("/ws")
+                .addInterceptors(cookieHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
