@@ -3,12 +3,12 @@ package com.forsalaw.rdvManagement.model;
 import com.forsalaw.rdvManagement.entity.TypeRendezVous;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Data
 public class ProposerCreneauRequest {
-    private LocalDateTime dateHeureDebut;
-    private LocalDateTime dateHeureFin;
+    private OffsetDateTime dateHeureDebut;
+    private OffsetDateTime dateHeureFin;
     private TypeRendezVous typeRendezVous;
     private String commentaireAvocat;
 }

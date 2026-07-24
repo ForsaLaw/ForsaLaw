@@ -8,7 +8,8 @@ import * as rdvApi from '../api/rdv.js'
 import '../styles/PlatformSpaces.css'
 
 function toIso(dt) {
-  return dt.toISOString().slice(0, 19)
+  // ISO-8601 avec fuseau (UTC "Z") : le backend attend desormais un OffsetDateTime.
+  return dt.toISOString()
 }
 
 export default function AppointmentBookingPage() {

@@ -118,13 +118,8 @@ public class AuditLogService {
         return toDTO(log);
     }
 
-    @Transactional
-    public void deleteByIdForAdmin(String id) {
-        if (!auditLogRepository.existsById(id)) {
-            throw new IllegalArgumentException("Audit log introuvable.");
-        }
-        auditLogRepository.deleteById(id);
-    }
+    // Suppression volontairement absente : le journal d'audit est append-only (immuable),
+    // enforce au niveau base par un trigger (V8__audit_log_immutable.sql).
 
     /**
      * Resolves the actor User from an ID. Returns null if the ID is blank or the user has been

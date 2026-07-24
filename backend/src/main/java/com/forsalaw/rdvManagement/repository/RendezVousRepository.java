@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -45,8 +45,8 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, String> 
             @Param("clientUserId") String clientUserId,
             @Param("avocatId") String avocatId,
             @Param("statut") StatutRendezVous statut,
-            @Param("du") LocalDateTime du,
-            @Param("au") LocalDateTime au,
+            @Param("du") OffsetDateTime du,
+            @Param("au") OffsetDateTime au,
             Pageable pageable
     );
 
@@ -62,8 +62,8 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, String> 
             @Param("avocatId") String avocatId,
             @Param("statutsOccupes") Collection<StatutRendezVous> statutsOccupes,
             @Param("excludeId") String excludeId,
-            @Param("debut") LocalDateTime debut,
-            @Param("fin") LocalDateTime fin
+            @Param("debut") OffsetDateTime debut,
+            @Param("fin") OffsetDateTime fin
     );
 
     @Query("""
@@ -79,8 +79,8 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, String> 
     List<RendezVous> findOccupyingForAvocatInRange(
             @Param("avocatId") String avocatId,
             @Param("statutsOccupes") Collection<StatutRendezVous> statutsOccupes,
-            @Param("debut") LocalDateTime debut,
-            @Param("fin") LocalDateTime fin
+            @Param("debut") OffsetDateTime debut,
+            @Param("fin") OffsetDateTime fin
     );
 
     @Query("""
@@ -96,8 +96,8 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, String> 
         """)
     List<RendezVous> findConfirmePourRappelJ1(
             @Param("confirme") StatutRendezVous confirme,
-            @Param("debut") LocalDateTime debut,
-            @Param("fin") LocalDateTime fin
+            @Param("debut") OffsetDateTime debut,
+            @Param("fin") OffsetDateTime fin
     );
 
     @Query("""
@@ -113,7 +113,7 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, String> 
         """)
     List<RendezVous> findConfirmePourRappelH1(
             @Param("confirme") StatutRendezVous confirme,
-            @Param("debut") LocalDateTime debut,
-            @Param("fin") LocalDateTime fin
+            @Param("debut") OffsetDateTime debut,
+            @Param("fin") OffsetDateTime fin
     );
 }

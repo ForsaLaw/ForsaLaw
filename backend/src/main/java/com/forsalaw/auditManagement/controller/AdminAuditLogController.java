@@ -50,10 +50,6 @@ public class AdminAuditLogController {
         return ResponseEntity.ok(auditLogService.getByIdForAdmin(id));
     }
 
-    @Operation(summary = "Supprimer un log d'audit (admin)")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        auditLogService.deleteByIdForAdmin(id);
-        return ResponseEntity.noContent().build();
-    }
+    // Aucune suppression : le journal d'audit est append-only (immuable). Voir V8__audit_log_immutable.sql
+    // et docs/ERASURE_POLICY.md pour la reconciliation avec le droit a l'effacement (RGPD/INPDP).
 }

@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Setter
@@ -22,13 +22,13 @@ public class RendezVousDTO {
     private String nomAvocat;
     private StatutRendezVous statutRendezVous;
     private String motifConsultation;
-    private LocalDateTime dateHeureDebut;
-    private LocalDateTime dateHeureFin;
+    private OffsetDateTime dateHeureDebut;
+    private OffsetDateTime dateHeureFin;
     private TypeRendezVous typeRendezVous;
     private CreePar creePar;
     private String raisonAnnulation;
     private String commentaireAvocat;
     private String meetingUrl;
-    private LocalDateTime dateCreation;
-    private LocalDateTime dateMiseAJour;
+    private OffsetDateTime dateCreation;
+    private OffsetDateTime dateMiseAJour;
 }

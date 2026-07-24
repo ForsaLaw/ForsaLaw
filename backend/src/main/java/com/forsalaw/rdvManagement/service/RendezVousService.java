@@ -17,7 +17,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 
 @Service
@@ -107,12 +108,12 @@ public class RendezVousService {
             throw new IllegalArgumentException("Ce rendez-vous est deja annule.");
         }
 
-        LocalDateTime debut = request.getDateHeureDebut();
-        LocalDateTime fin = request.getDateHeureFin();
+        OffsetDateTime debut = request.getDateHeureDebut();
+        OffsetDateTime fin = request.getDateHeureFin();
         if (debut == null || fin == null || !fin.isAfter(debut)) {
             throw new IllegalArgumentException("Le creneau propose est invalide.");
         }
-        if (debut.isBefore(LocalDateTime.now())) {
+        if (debut.isBefore(OffsetDateTime.now())) {
             throw new IllegalArgumentException("La date proposee doit etre dans le futur.");
         }
 
@@ -228,13 +229,13 @@ public class RendezVousService {
             String clientUserId,
             String avocatId,
             StatutRendezVous statut,
-            LocalDateTime du,
-            LocalDateTime au,
+            OffsetDateTime du,
+            OffsetDateTime au,
             Pageable pageable
     ) {
         // Evite les erreurs PostgreSQL de typage quand les parametres date sont null.
-        LocalDateTime borneBasse = du != null ? du : LocalDateTime.of(1970, 1, 1, 0, 0);
-        LocalDateTime borneHaute = au != null ? au : LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+        OffsetDateTime borneBasse = du != null ? du : OffsetDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime borneHaute = au != null ? au : OffsetDateTime.of(9999, 12, 31, 23, 59, 59, 0, ZoneOffset.UTC);
         return rendezVousRepository.findForAdmin(
                         blankToNull(clientUserId),
                         blankToNull(avocatId),

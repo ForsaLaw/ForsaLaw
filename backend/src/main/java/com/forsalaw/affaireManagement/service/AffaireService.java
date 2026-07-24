@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,10 @@ public class AffaireService {
         affaire.setClient(rdv.getClient());
         affaire.setAvocat(rdv.getAvocat());
         affaire.setRendezVous(rdv);
-        affaire.setDateProchaineAudience(rdv.getDateHeureDebut());
+        // Affaire.dateProchaineAudience reste un LocalDateTime (hors scope Phase 7) : on convertit
+        // l'instant du RDV en heure murale Africa/Tunis de facon deterministe pour l'affichage.
+        affaire.setDateProchaineAudience(rdv.getDateHeureDebut() == null ? null
+                : rdv.getDateHeureDebut().atZoneSameInstant(ZoneId.of("Africa/Tunis")).toLocalDateTime());
 
         affaireRepository.save(affaire);
 

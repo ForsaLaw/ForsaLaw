@@ -425,8 +425,9 @@ export function useLawyerSpaceData({ token, isAuthenticated, refreshUser, t, nav
     if (!token) return
     try {
       await rdvApi.lawyerProposeSlot(token, idRendezVous, {
-        dateHeureDebut: proposeStart,
-        dateHeureFin: proposeEnd,
+        // Saisie datetime-local (heure locale, sans fuseau) -> ISO-8601 avec decalage (OffsetDateTime).
+        dateHeureDebut: proposeStart ? new Date(proposeStart).toISOString() : proposeStart,
+        dateHeureFin: proposeEnd ? new Date(proposeEnd).toISOString() : proposeEnd,
         typeRendezVous: proposeType,
         commentaireAvocat: proposeComment || undefined,
       })

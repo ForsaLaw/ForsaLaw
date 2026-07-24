@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "rendez_vous")
@@ -34,10 +34,10 @@ public class RendezVous {
     private String motifConsultation;
 
     @Column(name = "date_heure_debut")
-    private LocalDateTime dateHeureDebut;
+    private OffsetDateTime dateHeureDebut;
 
     @Column(name = "date_heure_fin")
-    private LocalDateTime dateHeureFin;
+    private OffsetDateTime dateHeureFin;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -56,11 +56,14 @@ public class RendezVous {
     @Column(length = 1000)
     private String meetingUrl;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime dateCreation;
+    // Noms de colonnes explicites : la strategie CamelCaseToUnderscores mappe "dateMiseAJour"
+    // vers "date_mise_ajour" (pas de _ entre majuscules consecutives AJ), ce qui ne correspond
+    // pas au baseline V0 (date_mise_a_jour). On fige donc les noms ici.
+    @Column(name = "date_creation", nullable = false, updatable = false)
+    private OffsetDateTime dateCreation;
 
-    @Column(nullable = false)
-    private LocalDateTime dateMiseAJour;
+    @Column(name = "date_mise_a_jour", nullable = false)
+    private OffsetDateTime dateMiseAJour;
 
     @Column(name = "rappel_j1_envoye", nullable = false)
     private boolean rappelJ1Envoye = false;
@@ -70,13 +73,13 @@ public class RendezVous {
 
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         dateCreation = now;
         dateMiseAJour = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        dateMiseAJour = LocalDateTime.now();
+        dateMiseAJour = OffsetDateTime.now();
     }
 }
