@@ -82,8 +82,12 @@ jobs:
         working-directory: backend
         run: mvn -q -B compile -DskipTests
 
+      # Analyse SonarCloud NON bloquante : un token absent/invalide (rotation, dev solo) ne doit
+      # pas faire echouer la CI. Le scan tourne quand un token est present, mais son echec
+      # (ex. 403) laisse le job vert. Reactiver un gate strict quand le token est stabilise.
       - name: SonarCloud Scan
         if: ${{ env.SONAR_TOKEN != '' }}
+        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
