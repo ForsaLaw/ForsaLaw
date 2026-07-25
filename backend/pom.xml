@@ -96,6 +96,12 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Analyse HTML du JORT (collecte du corpus legislatif). Selecteurs isolés dans JortHtmlParser. -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
         <!-- Detection du vrai type MIME des fichiers uploades (anti-spoof de l'en-tete Content-Type). -->
         <dependency>
             <groupId>org.apache.tika</groupId>

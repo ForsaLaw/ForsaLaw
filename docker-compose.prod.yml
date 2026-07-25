@@ -84,6 +84,25 @@ services:
       timeout: 10s
       retries: 5
 
+  # Vectorisation (RAG) : bge-m3 servi par Text Embeddings Inference, auto-heberge.
+  # Les pieces confidentielles des cabinets (niveau 3) ne sortent pas de l'infrastructure.
+  # Image CPU par defaut : pour ingerer un corpus complet, basculer sur une image GPU
+  # (ghcr.io/huggingface/text-embeddings-inference:1.5) et declarer les ressources GPU.
+  embeddings:
+    image: ${EMBEDDING_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.5}
+    container_name: forsalaw-embeddings
+    restart: unless-stopped
+    command: --model-id ${EMBEDDING_MODEL:-BAAI/bge-m3} --port 80
+    volumes:
+      - forsalaw_embeddings_cache:/data
+    networks: [forsalaw-net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 600s
+
   backend:
     build:
       context: ./backend
@@ -96,6 +115,8 @@ services:
       minio:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      embeddings:
         condition: service_healthy
     networks: [forsalaw-net]
     environment:
@@ -117,6 +138,13 @@ services:
       S3_PATH_STYLE: "true"
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
+
+      # ─── Vectorisation (RAG) ───────────────────────────────────────────
+      EMBEDDING_BASE_URL: http://embeddings:80
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_DIMENSIONS: "1024"
+      # Collecte JORT : n'activer que sur UNE instance, jamais par defaut.
+      JORT_ENABLED: ${JORT_ENABLED:-false}
 
       # ─── Broker STOMP externe (indispensable des plusieurs replicas) ───
       WS_BROKER_RELAY_ENABLED: "true"
@@ -186,5 +214,6 @@ networks:
 
 volumes:
   forsalaw_pgdata:
+  forsalaw_embeddings_cache:
   forsalaw_miniodata:
   forsalaw_rabbitmqdata:

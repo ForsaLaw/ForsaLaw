@@ -83,6 +83,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Vectorisation (RAG) : Text Embeddings Inference de HuggingFace, servant bge-m3.
+  # Auto-heberge et non API tierce : les pieces confidentielles des cabinets (niveau 3 du
+  # corpus) ne doivent pas sortir de l'infrastructure pour etre vectorisees.
+  # Sur machine sans GPU, la vectorisation fonctionne mais reste lente : c'est acceptable
+  # pour du developpement, pas pour ingerer un corpus complet.
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: forsalaw-embeddings
+    restart: unless-stopped
+    command: --model-id BAAI/bge-m3 --port 80
+    ports:
+      - "8090:80"
+    volumes:
+      # Le modele pese ~2,2 Go : sans ce volume il serait retelecharge a chaque demarrage.
+      - forsalaw_embeddings_cache:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Le premier demarrage telecharge le modele : compter plusieurs minutes.
+      start_period: 600s
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: forsalaw-pgadmin
@@ -100,3 +123,4 @@ volumes:
   forsalaw_pgdata:
   forsalaw_miniodata:
   forsalaw_rabbitmqdata:
+  forsalaw_embeddings_cache:
