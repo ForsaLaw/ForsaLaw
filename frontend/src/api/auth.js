@@ -1,9 +1,9 @@
-import { parseApiError } from './client.js'
+import { apiFetch, parseApiError } from './client.js'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
 async function postJson(path, body) {
-  const res = await fetch(path, {
+  const res = await apiFetch(path, {
     method: 'POST',
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
@@ -28,6 +28,11 @@ export function login({ email, motDePasse }) {
 /** @returns {Promise<{ token: string, id: string, email: string, nom: string, prenom: string, roleUser: string }>} */
 export function register({ nom, prenom, email, motDePasse }) {
   return postJson('/api/auth/register', { nom, prenom, email, motDePasse })
+}
+
+/** Clears the httpOnly auth cookie server-side (JS cannot delete it). */
+export function logout() {
+  return postJson('/api/auth/logout', {})
 }
 
 /** @returns {Promise<string>} */

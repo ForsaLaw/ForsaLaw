@@ -1,4 +1,4 @@
-import { authHeaders, parseApiError } from './client.js'
+import { apiFetch, authHeaders, parseApiError } from './client.js'
 
 async function jsonOrThrow(res) {
   if (!res.ok) throw new Error(await parseApiError(res))
@@ -10,7 +10,7 @@ async function jsonOrThrow(res) {
  */
 export async function listMyDocuments(token, { page = 0, size = 50 } = {}) {
   const q = new URLSearchParams({ page, size })
-  const res = await fetch(`/api/documents?${q}`, { headers: authHeaders(token) })
+  const res = await apiFetch(`/api/documents?${q}`, { headers: authHeaders(token) })
   return jsonOrThrow(res)
 }
 
@@ -26,7 +26,7 @@ export async function uploadDocument(token, file, contexteType = '', contexteId 
   if (contexteType) fd.append('contexteType', contexteType)
   if (contexteId) fd.append('contexteId', contexteId)
 
-  const res = await fetch('/api/documents/upload', {
+  const res = await apiFetch('/api/documents/upload', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
@@ -38,7 +38,7 @@ export async function uploadDocument(token, file, contexteType = '', contexteId 
  * Télécharge le document source.
  */
 export async function downloadDocument(token, id) {
-  const res = await fetch(`/api/documents/${encodeURIComponent(id)}/download`, {
+  const res = await apiFetch(`/api/documents/${encodeURIComponent(id)}/download`, {
     headers: authHeaders(token)
   })
   if (!res.ok) throw new Error(await parseApiError(res))
@@ -56,7 +56,7 @@ export async function downloadDocument(token, id) {
  * }>}
  */
 export async function verifyIntegrity(token, id) {
-  const res = await fetch(`/api/documents/${encodeURIComponent(id)}/verifier-integrite`, {
+  const res = await apiFetch(`/api/documents/${encodeURIComponent(id)}/verifier-integrite`, {
     headers: authHeaders(token)
   })
   return jsonOrThrow(res)
@@ -67,7 +67,7 @@ export async function verifyIntegrity(token, id) {
  */
 export async function getDocumentHistory(token, id, { page = 0, size = 20 } = {}) {
   const q = new URLSearchParams({ page, size })
-  const res = await fetch(`/api/documents/${encodeURIComponent(id)}/historique?${q}`, {
+  const res = await apiFetch(`/api/documents/${encodeURIComponent(id)}/historique?${q}`, {
     headers: authHeaders(token)
   })
   return jsonOrThrow(res)

@@ -6,12 +6,15 @@ import com.forsalaw.userManagement.model.LoginRequest;
 import com.forsalaw.userManagement.model.RequestUnlockAccountRequest;
 import com.forsalaw.userManagement.model.RegisterRequest;
 import com.forsalaw.userManagement.model.ResetPasswordRequest;
+import com.forsalaw.security.JwtCookieService;
 import com.forsalaw.userManagement.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -21,6 +24,7 @@ import org.springframework.web.servlet.view.RedirectView;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtCookieService jwtCookieService;
 
     /**
      * URL publique du backend (port API). Obligatoire pour /api/auth/google : une redirection relative /oauth2/...
@@ -29,18 +33,55 @@ public class AuthController {
     @Value("${forsalaw.server.public-url:http://localhost:8081}")
     private String publicApiBaseUrl;
 
-    @Operation(summary = "Inscription", description = "Cree un nouveau compte utilisateur et retourne un token JWT.")
+    @Operation(
+            summary = "Inscription",
+            description = "Cree un compte et depose le JWT dans un cookie HttpOnly. Le token reste "
+                    + "present dans le corps de la reponse pour Swagger / clients HTTP (Bearer).")
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
-        return ResponseEntity.ok(response);
+        return withAuthCookie(response);
     }
 
-    @Operation(summary = "Connexion", description = "Authentifie un utilisateur par email et mot de passe. Retourne un token JWT.")
+    @Operation(
+            summary = "Connexion",
+            description = "Authentifie l'utilisateur et depose le JWT dans un cookie HttpOnly. Le token reste "
+                    + "present dans le corps de la reponse pour Swagger / clients HTTP (Bearer).")
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return withAuthCookie(response);
+    }
+
+    @Operation(
+            summary = "Amorcer le cookie CSRF",
+            description = "Endpoint GET (donc sans protection CSRF) dont le seul but est de faire emettre "
+                    + "le cookie XSRF-TOKEN, que le front renvoie ensuite dans l'en-tete X-XSRF-TOKEN.")
+    @GetMapping("/csrf")
+    public ResponseEntity<Void> csrf(CsrfToken csrfToken) {
+        // Resoudre la valeur declenche l'ecriture du cookie (chargement differe en Spring Security 6).
+        if (csrfToken != null) {
+            csrfToken.getToken();
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Deconnexion",
+            description = "Efface le cookie d'authentification. Indispensable : un cookie HttpOnly ne peut pas "
+                    + "etre supprime par le JavaScript du navigateur, seul le serveur peut l'expirer.")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, jwtCookieService.clear().toString())
+                .build();
+    }
+
+    /** Depose le JWT dans le cookie HttpOnly tout en conservant le corps JSON existant. */
+    private ResponseEntity<AuthResponse> withAuthCookie(AuthResponse response) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtCookieService.build(response.getToken()).toString())
+                .body(response);
     }
 
     @Operation(summary = "Mot de passe oublie", description = "Genere un token temporaire de reinitialisation pour l'email fourni.")

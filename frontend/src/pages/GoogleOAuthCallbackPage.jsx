@@ -10,15 +10,16 @@ export default function GoogleOAuthCallbackPage() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    if (!token) {
-      setError('Paramètre token manquant dans l’URL de retour OAuth.')
+    // Le JWT n'est plus passe dans l'URL : le backend a depose un cookie HttpOnly avant de
+    // rediriger. On resout donc la session cote serveur (GET /api/users/me).
+    if (searchParams.get('error')) {
+      setError('La connexion Google a échoué. Veuillez réessayer.')
       return
     }
     let cancelled = false
     ;(async () => {
       try {
-        await completeOAuthLogin(token)
+        await completeOAuthLogin()
         if (!cancelled) navigate('/', { replace: true })
       } catch (e) {
         if (!cancelled) setError(e?.message || String(e))

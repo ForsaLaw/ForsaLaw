@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -34,6 +35,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private final GoogleOAuth2UserService googleOAuth2UserService;
     private final JwtService jwtService;
+    private final JwtCookieService jwtCookieService;
 
     /** Instance locale : avec {@code requestCache.disable()} dans SecurityConfig, aucun bean RequestCache n'est exposé. */
     private final RequestCache requestCache = new HttpSessionRequestCache();
@@ -57,11 +59,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         User user = googleOAuth2UserService.upsertGoogleUser(oauth2User);
 
         String token = jwtService.generateToken(user.getEmail(), user.getRoleUser().name());
+
+        // Le JWT part dans un cookie HttpOnly, plus dans l'URL (fuite en historique, logs proxy,
+        // en-tete Referer). Le front appelle ensuite /api/users/me pour connaitre l'utilisateur.
+        response.addHeader(HttpHeaders.SET_COOKIE, jwtCookieService.build(token).toString());
+
         String base = safeFrontendCallbackBase(successRedirectUri);
         String redirectUrl = UriComponentsBuilder.fromUriString(base)
-                .queryParam("token", token)
-                .queryParam("email", user.getEmail())
-                .queryParam("role", user.getRoleUser().name())
+                .queryParam("status", "success")
                 .build()
                 .toUriString();
 

@@ -20,6 +20,8 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
@@ -40,6 +42,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final ObjectMapper objectMapper;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository;
 
     /** Origines frontend autorisees pour CORS (liste separee par des virgules), voir application.properties. */
     @Value("${forsalaw.cors.allowed-origins}")
@@ -48,12 +51,35 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                // CSRF REACTIVE : l'authentification passe desormais par un cookie, que le navigateur
+                // envoie automatiquement — un formulaire tiers pourrait donc declencher une action.
+                // Double-submit : le token est depose dans le cookie LISIBLE XSRF-TOKEN, et le front
+                // doit le renvoyer dans l'en-tete X-XSRF-TOKEN.
+                // Endpoints exemptes : ceux appeles sans session prealable (login/register/reset),
+                // le flux OAuth2, le WebSocket et les endpoints publics.
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .ignoringRequestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/auth/request-unlock",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
+                                "/ws/**",
+                                "/api/documents/public/verify"
+                        )
+                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Sinon, après OAuth2, Spring peut rediriger vers une URL sauvegardée (ex. Swagger) au lieu du handler JWT.
                 .requestCache(cache -> cache.disable())
+                // STATELESS : aucune session serveur. Possible car la requete d'autorisation OAuth2
+                // est desormais conservee dans un cookie (HttpCookieOAuth2AuthorizationRequestRepository)
+                // et non plus en session — sinon le callback Google echouerait en authorization_request_not_found.
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
@@ -86,6 +112,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler())
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        // Requete d'autorisation stockee en cookie (et non en session) => compatible STATELESS.
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestRepository(oAuth2AuthorizationRequestRepository))
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
@@ -133,7 +162,9 @@ public class SecurityConfig {
                 .filter(o -> !o.isEmpty())
                 .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
+        // X-XSRF-TOKEN : en-tete portant le jeton CSRF renvoye par le front (double-submit cookie).
+        config.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "X-XSRF-TOKEN"));
         config.setExposedHeaders(List.of("Content-Disposition"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

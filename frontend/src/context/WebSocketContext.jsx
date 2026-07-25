@@ -1,7 +1,7 @@
 /**
  * WebSocketContext.jsx
  * Manages a single STOMP-over-SockJS connection for the whole app.
- * Connects when the user has a valid JWT token, disconnects on logout.
+ * Connects when the user has an authenticated session, disconnects on logout.
  *
  * Backend endpoints:
  *   SockJS endpoint : /ws  (JWT sent in the STOMP CONNECT frame's Authorization header)
@@ -19,7 +19,9 @@ import { useAuth } from './AuthContext.jsx'
 const WebSocketContext = createContext(null)
 
 export function WebSocketProvider({ children }) {
-  const { token } = useAuth()
+  // Le JWT est dans un cookie HttpOnly : illisible en JS. On se base donc sur l'etat de session,
+  // et c'est le navigateur qui envoie le cookie lors du handshake SockJS.
+  const { isAuthenticated } = useAuth()
   const clientRef = useRef(null)
   const [connected, setConnected] = useState(false)
   // subscriptions map: destination -> Set<callback>
@@ -41,9 +43,9 @@ export function WebSocketProvider({ children }) {
     })
   }, [])
 
-  // ── Lifecycle: create/destroy client when token changes ─────────────────
+  // ── Lifecycle: create/destroy client when the session changes ────────────
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       // Disconnect if client exists
       if (clientRef.current && clientRef.current.active) {
         clientRef.current.deactivate()
@@ -55,10 +57,10 @@ export function WebSocketProvider({ children }) {
     }
 
     const client = new Client({
-      // Le token n'est plus dans l'URL (fuite dans les logs/historique) : il est envoye dans
-      // l'en-tete Authorization de la frame STOMP CONNECT, lue cote backend par un ChannelInterceptor.
+      // Ni URL ni en-tete CONNECT : le cookie HttpOnly part automatiquement avec le handshake
+      // SockJS, et le backend (WebSocketCookieHandshakeInterceptor + StompAuthChannelInterceptor)
+      // authentifie la frame CONNECT a partir de ce cookie.
       webSocketFactory: () => new SockJS('/ws'),
-      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
@@ -89,7 +91,7 @@ export function WebSocketProvider({ children }) {
       stompSubsRef.current.clear()
       setConnected(false)
     }
-  }, [token, resubscribeAll])
+  }, [isAuthenticated, resubscribeAll])
 
   // ── subscribe(destination, callback) → unsubscribe fn ───────────────────
   const subscribe = useCallback((destination, callback) => {

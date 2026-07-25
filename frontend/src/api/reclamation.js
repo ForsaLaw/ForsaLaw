@@ -1,4 +1,4 @@
-import { authHeaders, parseApiError } from './client.js'
+import { apiFetch, authHeaders, parseApiError } from './client.js'
 
 async function jsonOrThrow(res) {
   if (!res.ok) throw new Error(await parseApiError(res))
@@ -12,7 +12,7 @@ async function jsonOrThrow(res) {
 export async function listMyReclamations(token, { page = 0, size = 20, statut } = {}) {
   const q = new URLSearchParams({ page, size })
   if (statut) q.set('statut', statut)
-  const res = await fetch(`/api/reclamations?${q}`, { headers: authHeaders(token) })
+  const res = await apiFetch(`/api/reclamations?${q}`, { headers: authHeaders(token) })
   return jsonOrThrow(res)
 }
 
@@ -21,7 +21,7 @@ export async function listMyReclamations(token, { page = 0, size = 20, statut } 
  * @param {object} body - { titre, description, categorie, gravite, utilisateurCibleId? }
  */
 export async function createReclamation(token, body) {
-  const res = await fetch('/api/reclamations', {
+  const res = await apiFetch('/api/reclamations', {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(body),
@@ -33,7 +33,7 @@ export async function createReclamation(token, body) {
  * Récupère le détail d'une réclamation.
  */
 export async function getReclamation(token, id) {
-  const res = await fetch(`/api/reclamations/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/reclamations/${encodeURIComponent(id)}`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
@@ -44,7 +44,7 @@ export async function getReclamation(token, id) {
  * @returns {Promise<ReclamationMessageDTO[]>}
  */
 export async function getReclamationMessages(token, id) {
-  const res = await fetch(`/api/reclamations/${encodeURIComponent(id)}/messages`, {
+  const res = await apiFetch(`/api/reclamations/${encodeURIComponent(id)}/messages`, {
     headers: authHeaders(token),
   })
   return jsonOrThrow(res)
@@ -55,7 +55,7 @@ export async function getReclamationMessages(token, id) {
  * @param {string} contenu
  */
 export async function addReclamationMessage(token, id, contenu) {
-  const res = await fetch(`/api/reclamations/${encodeURIComponent(id)}/messages`, {
+  const res = await apiFetch(`/api/reclamations/${encodeURIComponent(id)}/messages`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ contenu }),
@@ -71,7 +71,7 @@ export async function addReclamationMessage(token, id, contenu) {
 export async function uploadReclamationAttachment(token, id, file) {
   const fd = new FormData()
   fd.append('fichier', file)
-  const res = await fetch(`/api/reclamations/${encodeURIComponent(id)}/pieces-jointes`, {
+  const res = await apiFetch(`/api/reclamations/${encodeURIComponent(id)}/pieces-jointes`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,

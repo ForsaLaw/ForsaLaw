@@ -39,7 +39,12 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             return message;
         }
 
-        String token = extractBearer(accessor.getFirstNativeHeader("Authorization"));
+        // Source principale : cookie HttpOnly capture au handshake (le JS ne peut plus lire le JWT).
+        // Repli : en-tete Authorization de la frame CONNECT (clients non navigateur / tests).
+        String token = tokenFromHandshakeCookie(accessor);
+        if (token == null) {
+            token = extractBearer(accessor.getFirstNativeHeader("Authorization"));
+        }
         if (token == null || !jwtService.isTokenValid(token)) {
             throw new IllegalArgumentException("Token JWT WebSocket invalide ou absent.");
         }
@@ -57,6 +62,16 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 email, null, Collections.singletonList(authority));
         accessor.setUser(principal);
         return message;
+    }
+
+    /** JWT depose dans les attributs de session par {@link WebSocketCookieHandshakeInterceptor}. */
+    private String tokenFromHandshakeCookie(StompHeaderAccessor accessor) {
+        var attributes = accessor.getSessionAttributes();
+        if (attributes == null) {
+            return null;
+        }
+        Object token = attributes.get(WebSocketCookieHandshakeInterceptor.JWT_SESSION_ATTRIBUTE);
+        return token instanceof String s && !s.isBlank() ? s : null;
     }
 
     private String extractBearer(String header) {
