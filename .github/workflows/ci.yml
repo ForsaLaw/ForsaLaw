@@ -67,8 +67,11 @@ jobs:
       - name: Validate nginx configuration
         run: docker run --rm forsalaw-frontend:ci nginx -t
 
+      # `docker images` n'accepte qu'un seul depot par appel.
       - name: Image sizes
-        run: docker images forsalaw-backend:ci forsalaw-frontend:ci
+        run: |
+          docker images forsalaw-backend:ci
+          docker images forsalaw-frontend:ci
 
   quality:
     name: Repo quality
