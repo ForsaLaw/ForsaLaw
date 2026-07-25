@@ -1,0 +1,23 @@
+# Contexte de build Docker : tout ce qui est liste ici n'est PAS envoye au daemon.
+# node_modules est reinstalle dans l'image via `npm ci` : l'envoyer serait long et
+# risquerait d'embarquer des binaires natifs compiles pour l'OS de l'hote.
+
+node_modules/
+dist/
+
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+
+# Outils / IDE
+.idea/
+.vscode/
+
+# Brouillons non versionnes
+scratch/
+
+Dockerfile
+.dockerignore
+
+*.log
