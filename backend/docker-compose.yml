@@ -57,6 +57,32 @@ services:
       echo 'Bucket forsalaw-documents pret.'
       "
 
+  # Broker STOMP externe pour la messagerie temps reel (scaling multi-instances).
+  # Console web : http://localhost:15672 (forsalaw / forsalaw)
+  # Le plugin STOMP n'est pas actif dans l'image : on l'active avant de demarrer le serveur.
+  # Utilisateur dedie plutot que "guest" : guest est restreint au loopback par RabbitMQ, ce qui
+  # refuserait la connexion venant de l'hote via le port publie.
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: forsalaw-rabbitmq
+    restart: unless-stopped
+    command: >
+      bash -c "rabbitmq-plugins enable --offline rabbitmq_stomp && rabbitmq-server"
+    environment:
+      RABBITMQ_DEFAULT_USER: forsalaw
+      RABBITMQ_DEFAULT_PASS: forsalaw
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # console de gestion
+      - "61613:61613"   # STOMP (utilise par le relais Spring)
+    volumes:
+      - forsalaw_rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: forsalaw-pgadmin
@@ -73,3 +99,4 @@ services:
 volumes:
   forsalaw_pgdata:
   forsalaw_miniodata:
+  forsalaw_rabbitmqdata:
