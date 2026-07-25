@@ -1,0 +1,190 @@
+# ForsaLaw — orchestration de production.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Les variables sont lues dans un fichier .env place A COTE de ce fichier (voir
+# backend/.env.example pour la liste complete). La syntaxe ${VAR:?message} fait echouer
+# `docker compose` immediatement si un secret obligatoire manque, plutot que de demarrer
+# une application qui tombera au premier appel.
+#
+# Exposition reseau : SEUL le frontend publie un port. La base, MinIO, RabbitMQ et meme le
+# backend restent joignables uniquement depuis le reseau interne — le backend est atteint par
+# le reverse proxy Nginx, et les fichiers transitent par l'API (journal d'audit oblige).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: forsalaw-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-forsalaw}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME est obligatoire}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD est obligatoire}
+    volumes:
+      - forsalaw_pgdata:/var/lib/postgresql/data
+    networks: [forsalaw-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-forsalaw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: forsalaw-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY est obligatoire}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?S3_SECRET_KEY est obligatoire}
+    volumes:
+      - forsalaw_miniodata:/data
+    networks: [forsalaw-net]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cree le bucket puis s'arrete : l'application ne cree pas le bucket elle-meme.
+  minio-init:
+    image: minio/mc:latest
+    container_name: forsalaw-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks: [forsalaw-net]
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${S3_ACCESS_KEY} $${S3_SECRET_KEY} &&
+      mc mb --ignore-existing local/$${S3_BUCKET} &&
+      echo 'Bucket' $${S3_BUCKET} 'pret.'
+      "
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-forsalaw-documents}
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: forsalaw-rabbitmq
+    restart: unless-stopped
+    # Le plugin STOMP n'est pas actif dans l'image : on l'active avant de demarrer le serveur.
+    command: >
+      bash -c "rabbitmq-plugins enable --offline rabbitmq_stomp && rabbitmq-server"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${WS_BROKER_USER:?WS_BROKER_USER est obligatoire}
+      RABBITMQ_DEFAULT_PASS: ${WS_BROKER_PASSWORD:?WS_BROKER_PASSWORD est obligatoire}
+    volumes:
+      - forsalaw_rabbitmqdata:/var/lib/rabbitmq
+    networks: [forsalaw-net]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    image: forsalaw-backend:latest
+    container_name: forsalaw-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [forsalaw-net]
+    environment:
+      # ─── Base de donnees ───────────────────────────────────────────────
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-forsalaw}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Le schema est gere par Flyway : Hibernate se contente de le valider.
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
+
+      # ─── Secrets ───────────────────────────────────────────────────────
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET est obligatoire (>= 32 caracteres)}
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-}
+
+      # ─── Stockage objet ────────────────────────────────────────────────
+      S3_BUCKET: ${S3_BUCKET:-forsalaw-documents}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE: "true"
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+
+      # ─── Broker STOMP externe (indispensable des plusieurs replicas) ───
+      WS_BROKER_RELAY_ENABLED: "true"
+      WS_BROKER_HOST: rabbitmq
+      WS_BROKER_PORT: "61613"
+      WS_BROKER_USER: ${WS_BROKER_USER}
+      WS_BROKER_PASSWORD: ${WS_BROKER_PASSWORD}
+      WS_BROKER_SYSTEM_USER: ${WS_BROKER_USER}
+      WS_BROKER_SYSTEM_PASSWORD: ${WS_BROKER_PASSWORD}
+
+      # ─── URLs publiques ────────────────────────────────────────────────
+      # A renseigner imperativement : ces valeurs partent dans les e-mails et dans les liens
+      # de telechargement. Laissees par defaut, la production enverrait des liens localhost.
+      PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL est obligatoire (ex. https://app.forsalaw.tn)}
+      FRONTEND_BASE_URL: ${PUBLIC_BASE_URL}
+      OAUTH2_SUCCESS_REDIRECT_URI: ${PUBLIC_BASE_URL}/auth/google/callback
+      PASSWORD_RESET_FRONTEND_URL: ${PUBLIC_BASE_URL}/reset-password
+      FORSALAW_CORS_ALLOWED_ORIGINS: ${PUBLIC_BASE_URL}
+
+      # Cookie d'authentification : true des que le site est servi en HTTPS (sinon le
+      # navigateur ignore silencieusement le cookie et personne ne peut se connecter).
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+
+      # ─── OAuth2 Google / SMTP ──────────────────────────────────────────
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@forsalaw.com}
+
+      # ─── Amorcage du premier admin (facultatif) ────────────────────────
+      ADMIN_SEED_EMAIL: ${ADMIN_SEED_EMAIL:-}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-}
+    healthcheck:
+      # Endpoint public (permitAll) : verifie que l'application sert bien du HTTP.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider",
+             "http://localhost:8080/api/avocats/domaines"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Demarrage Spring Boot + migrations Flyway : on laisse le temps avant de compter les echecs.
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ./frontend
+    image: forsalaw-frontend:latest
+    container_name: forsalaw-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [forsalaw-net]
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+networks:
+  forsalaw-net:
+    driver: bridge
+
+volumes:
+  forsalaw_pgdata:
+  forsalaw_miniodata:
+  forsalaw_rabbitmqdata:

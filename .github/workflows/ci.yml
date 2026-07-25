@@ -46,6 +46,33 @@ jobs:
       - name: Build
         run: npm run build
 
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Verifie uniquement que les images se CONSTRUISENT : aucune publication vers un
+      # registre. Les tests ne tournent pas ici (ils sont deja executes par le job backend,
+      # et l'image les ignore volontairement : Testcontainers exige un daemon Docker,
+      # indisponible a l'interieur d'un build d'image).
+      - name: Build backend image
+        run: docker build -t forsalaw-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t forsalaw-frontend:ci ./frontend
+
+      # La configuration Nginx n'est validee qu'au demarrage : une erreur de syntaxe passerait
+      # le build et ne casserait qu'au deploiement.
+      - name: Validate nginx configuration
+        run: docker run --rm forsalaw-frontend:ci nginx -t
+
+      # `docker images` n'accepte qu'un seul depot par appel.
+      - name: Image sizes
+        run: |
+          docker images forsalaw-backend:ci
+          docker images forsalaw-frontend:ci
+
   quality:
     name: Repo quality
     runs-on: ubuntu-latest

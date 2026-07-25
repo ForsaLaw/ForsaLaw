@@ -1,0 +1,25 @@
+# Contexte de build Docker : tout ce qui est liste ici n'est PAS envoye au daemon.
+# Sans ce fichier, target/ (plusieurs centaines de Mo) est transfere a chaque build et
+# d'anciens artefacts locaux peuvent se retrouver figes dans une couche d'image.
+
+target/
+!target/*.jar
+
+# Secrets et configuration locale (ne doivent jamais entrer dans une image).
+.env
+.env.*
+!.env.example
+
+# Outils / IDE
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+
+# Compose de developpement : sans objet dans l'image
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Divers
+*.log
+uploads/
