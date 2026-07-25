@@ -134,13 +134,19 @@
         </dependency>
         <!--
           Client TCP du relais STOMP externe : Spring passe par ReactorNettyTcpClient des que
-          enableStompBrokerRelay() est utilise. Sans cette dependance, l'erreur (NoClassDefFoundError)
-          n'apparaitrait qu'avec le relais ACTIVE, donc en production et pas en dev.
+          enableStompBrokerRelay() est utilise. Sans cette dependance, l'echec ("No compatible
+          version of Reactor Netty") n'apparaitrait qu'avec le relais ACTIVE, donc en production
+          et pas en dev.
+
+          C'est bien -http et non -core qu'il faut : StompBrokerRelayMessageHandler teste la
+          presence de reactor.netty.http.client.HttpClient (artefact -http) avant d'instancier
+          TcpClient (artefact -core). Declarer uniquement -core compile et demarre, puis echoue
+          au demarrage du broker. -http entraine -core de maniere transitive.
           Version geree par le parent Spring Boot.
         -->
         <dependency>
             <groupId>io.projectreactor.netty</groupId>
-            <artifactId>reactor-netty-core</artifactId>
+            <artifactId>reactor-netty-http</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

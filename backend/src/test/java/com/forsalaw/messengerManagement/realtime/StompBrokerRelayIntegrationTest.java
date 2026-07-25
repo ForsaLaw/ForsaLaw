@@ -3,7 +3,9 @@ package com.forsalaw.messengerManagement.realtime;
 import com.forsalaw.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
+import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -53,15 +55,24 @@ class StompBrokerRelayIntegrationTest extends AbstractIntegrationTest {
         registry.add("forsalaw.websocket.broker.system-passcode", RABBITMQ::getAdminPassword);
     }
 
+    // Spring declare TOUJOURS les deux beans de broker : celui qui n'est pas configure est
+    // remplace par une implementation "no-op". Il faut donc les qualifier par nom, sinon
+    // l'injection par type est ambigue.
     @Autowired
-    AbstractBrokerMessageHandler brokerMessageHandler;
+    @Qualifier("stompBrokerRelayMessageHandler")
+    AbstractBrokerMessageHandler brokerRelais;
+
+    @Autowired
+    @Qualifier("simpleBrokerMessageHandler")
+    AbstractBrokerMessageHandler brokerEnMemoire;
 
     @Test
     void relaisActive_leBrokerExterneEstUtiliseEtJoignable() throws InterruptedException {
         // Le broker en memoire a bien ete remplace par le relais.
-        assertThat(brokerMessageHandler).isInstanceOf(StompBrokerRelayMessageHandler.class);
+        assertThat(brokerRelais).isInstanceOf(StompBrokerRelayMessageHandler.class);
+        assertThat(brokerEnMemoire).isNotInstanceOf(SimpleBrokerMessageHandler.class);
 
-        StompBrokerRelayMessageHandler relais = (StompBrokerRelayMessageHandler) brokerMessageHandler;
+        StompBrokerRelayMessageHandler relais = (StompBrokerRelayMessageHandler) brokerRelais;
         assertThat(relais.getRelayPort()).isEqualTo(RABBITMQ.getMappedPort(PORT_STOMP));
 
         // La connexion systeme s'etablit de maniere asynchrone au demarrage : on attend

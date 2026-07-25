@@ -2,9 +2,11 @@ package com.forsalaw;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
+import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,8 +20,16 @@ class SmokeIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     ApplicationContext applicationContext;
 
+    // Spring declare TOUJOURS les deux beans de broker : celui qui n'est pas configure est
+    // remplace par une implementation "no-op". Il faut donc les qualifier par nom, sinon
+    // l'injection par type est ambigue.
     @Autowired
-    AbstractBrokerMessageHandler brokerMessageHandler;
+    @Qualifier("simpleBrokerMessageHandler")
+    AbstractBrokerMessageHandler brokerEnMemoire;
+
+    @Autowired
+    @Qualifier("stompBrokerRelayMessageHandler")
+    AbstractBrokerMessageHandler brokerRelais;
 
     @Test
     void contextLoadsAgainstRealPostgres() {
@@ -33,6 +43,7 @@ class SmokeIntegrationTest extends AbstractIntegrationTest {
      */
     @Test
     void sansConfigurationDeRelais_leBrokerEnMemoireEstUtilise() {
-        assertThat(brokerMessageHandler).isInstanceOf(SimpleBrokerMessageHandler.class);
+        assertThat(brokerEnMemoire).isInstanceOf(SimpleBrokerMessageHandler.class);
+        assertThat(brokerRelais).isNotInstanceOf(StompBrokerRelayMessageHandler.class);
     }
 }
