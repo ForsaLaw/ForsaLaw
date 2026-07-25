@@ -20,7 +20,21 @@
     <properties>
         <java.version>17</java.version>
         <shedlock.version>5.16.0</shedlock.version>
+        <awssdk.version>2.25.70</awssdk.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- BOM AWS SDK v2 : aligne les versions de tous les modules aws (s3, auth, http-client...). -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -109,6 +123,15 @@
             <artifactId>shedlock-provider-jdbc-template</artifactId>
             <version>${shedlock.version}</version>
         </dependency>
+        <!--
+          Stockage objet (S3 / MinIO) : remplace l'ecriture sur disque local, prerequis au
+          deploiement multi-instances (le disque local n'est pas partage entre replicas).
+          Version geree par le BOM aws ci-dessus.
+        -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -128,6 +151,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Stockage objet reel (MinIO) pour les tests d'integration du coffre-fort. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>minio</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

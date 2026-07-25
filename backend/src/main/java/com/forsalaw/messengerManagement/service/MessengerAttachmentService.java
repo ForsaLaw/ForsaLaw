@@ -15,7 +15,6 @@ import com.forsalaw.userManagement.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,14 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -46,9 +39,6 @@ public class MessengerAttachmentService {
     private final MessengerAttachmentFileValidator fileValidator;
     private final MessengerAttachmentDownloadTokenService downloadTokenService;
     private final DocumentService documentService;
-
-    @Value("${forsalaw.messenger.attachments.storage-dir:${user.home}/forsalaw-messenger-attachments}")
-    private String storageDir;
 
     @Value("${forsalaw.messenger.attachments.max-size-bytes:10485760}")
     private long maxSizeBytes;
@@ -163,13 +153,5 @@ public class MessengerAttachmentService {
                 a.getScanStatus(),
                 url
         );
-    }
-
-    private static String sanitizeFilename(String name) {
-        String base = name.replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (base.length() > 200) {
-            base = base.substring(base.length() - 200);
-        }
-        return base.isEmpty() ? "file" : base;
     }
 }
