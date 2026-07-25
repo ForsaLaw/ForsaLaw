@@ -1,7 +1,9 @@
 package com.forsalaw.auditManagement.controller;
 
+import com.forsalaw.auditManagement.model.AuditIntegrityReport;
 import com.forsalaw.auditManagement.model.AuditLogDTO;
 import com.forsalaw.auditManagement.model.CreateAuditLogRequest;
+import com.forsalaw.auditManagement.service.AuditIntegrityService;
 import com.forsalaw.auditManagement.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,6 +25,20 @@ import org.springframework.web.bind.annotation.*;
 public class AdminAuditLogController {
 
     private final AuditLogService auditLogService;
+    private final AuditIntegrityService auditIntegrityService;
+
+    @Operation(
+            summary = "Vérifier l'intégrité du journal d'audit (admin)",
+            description = """
+                    Exécute trois contrôles : présence et activité du trigger d'immuabilité,
+                    continuité des identifiants, et recalcul complet du chaînage SHA-256.
+                    Répond 200 avec `integre=false` lorsqu'une altération est détectée : la
+                    vérification a abouti, c'est son résultat qui est négatif.
+                    """)
+    @GetMapping("/integrity")
+    public ResponseEntity<AuditIntegrityReport> verifierIntegrite() {
+        return ResponseEntity.ok(auditIntegrityService.verifier());
+    }
 
     @Operation(summary = "Créer un log d'audit (admin)")
     @PostMapping

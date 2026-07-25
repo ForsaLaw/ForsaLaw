@@ -312,5 +312,17 @@
   "lawyer_space_deactivate_section": "Désactiver le profil avocat",
   "lawyer_space_deactivate_hint": "Votre profil ne sera plus visible dans l'annuaire public. Nécessite le rôle avocat sur la session.",
   "lawyer_space_deactivate": "Désactiver mon profil avocat",
-  "lawyer_space_deactivate_confirm": "Désactiver votre profil avocat sur ForsaLaw ? En cas d'erreur, contactez le support."
+  "lawyer_space_deactivate_confirm": "Désactiver votre profil avocat sur ForsaLaw ? En cas d'erreur, contactez le support.",
+  "ai_disclaimer_title": "Ceci n'est pas un conseil juridique.",
+  "ai_disclaimer_body": "Fellawra est un assistant de demonstration. Ses reponses sont generees automatiquement, peuvent etre inexactes et ne remplacent en aucun cas l'avis d'un avocat inscrit au barreau.",
+  "ai_consent_title": "Avant d'utiliser l'assistant",
+  "ai_consent_intro": "Merci de prendre connaissance des points suivants avant de poser une question.",
+  "ai_consent_point_not_advice": "Les reponses ne constituent pas un conseil juridique et n'engagent aucune responsabilite professionnelle.",
+  "ai_consent_point_demo": "L'assistant est actuellement une demonstration : ses reponses sont pre-ecrites et ne proviennent pas d'une analyse de votre situation.",
+  "ai_consent_point_no_data": "Aucune donnee saisie ici n'est envoyee a un serveur ni a un prestataire tiers : tout reste dans votre navigateur.",
+  "ai_consent_point_lawyer": "Pour une situation reelle, consultez un avocat via la plateforme : lui seul peut vous conseiller.",
+  "ai_consent_checkbox": "J'ai lu et compris ces informations.",
+  "ai_consent_accept": "J'ai compris, continuer",
+  "ai_consent_decline": "Retour",
+  "ai_consent_version": "Version {{version}} de cet avertissement."
 }

@@ -25,6 +25,8 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final IdSequenceService idSequenceService;
+    /** Toute ecriture passe par le chainage : une insertion directe serait rejetee (NOT NULL). */
+    private final AuditChainService auditChainService;
 
     @Transactional
     public AuditLogDTO createByAdmin(CreateAuditLogRequest request) {
@@ -43,7 +45,7 @@ public class AuditLogService {
         log.setUserAgent(clean(request.getUserAgent()));
         log.setDetails(truncateDetails(clean(request.getDetails())));
 
-        return toDTO(auditLogRepository.save(log));
+        return toDTO(auditChainService.append(log));
     }
 
     @Transactional
@@ -71,7 +73,7 @@ public class AuditLogService {
         log.setIpAddress(clean(ipAddress));
         log.setUserAgent(clean(userAgent));
         log.setDetails(truncateDetails(clean(details)));
-        return toDTO(auditLogRepository.save(log));
+        return toDTO(auditChainService.append(log));
     }
 
     @Transactional(readOnly = true)

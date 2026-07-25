@@ -312,5 +312,17 @@
   "lawyer_space_deactivate_section": "تعطيل ملف المحامي",
   "lawyer_space_deactivate_hint": "لن يظهر ملفك في الدليل العام. يتطلب دور المحامي في الجلسة.",
   "lawyer_space_deactivate": "تعطيل ملف المحامي",
-  "lawyer_space_deactivate_confirm": "تعطيل ملف المحامي على ForsaLaw؟ تواصل مع الدعم في حال الخطأ."
+  "lawyer_space_deactivate_confirm": "تعطيل ملف المحامي على ForsaLaw؟ تواصل مع الدعم في حال الخطأ.",
+  "ai_disclaimer_title": "هذه ليست استشارة قانونية.",
+  "ai_disclaimer_body": "فلاورة مساعد تجريبي. إجاباته تُولَّد آليًا وقد تكون غير دقيقة، وهي لا تغني بأي حال عن رأي محامٍ مرسّم.",
+  "ai_consent_title": "قبل استخدام المساعد",
+  "ai_consent_intro": "يرجى الاطلاع على النقاط التالية قبل طرح سؤالك.",
+  "ai_consent_point_not_advice": "الإجابات لا تشكّل استشارة قانونية ولا تترتب عنها أي مسؤولية مهنية.",
+  "ai_consent_point_demo": "المساعد حاليًا نسخة تجريبية: إجاباته معدّة مسبقًا وليست تحليلًا لوضعيتك.",
+  "ai_consent_point_no_data": "لا تُرسل أي بيانات تكتبها هنا إلى أي خادم أو طرف ثالث: كل شيء يبقى داخل متصفحك.",
+  "ai_consent_point_lawyer": "لأي وضعية حقيقية، استشر محاميًا عبر المنصة: هو وحده من يمكنه إفادتك.",
+  "ai_consent_checkbox": "لقد قرأت هذه المعلومات وفهمتها.",
+  "ai_consent_accept": "فهمت، متابعة",
+  "ai_consent_decline": "رجوع",
+  "ai_consent_version": "الإصدار {{version}} من هذا التنبيه."
 }

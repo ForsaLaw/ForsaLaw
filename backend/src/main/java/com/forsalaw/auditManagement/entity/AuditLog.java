@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "audit_log", indexes = {
@@ -55,8 +56,23 @@ public class AuditLog {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * Empreinte SHA-256 de la ligne, chainee sur {@link #prevHash}.
+     * Calculee par AuditChainService : ne jamais renseigner ces deux champs a la main.
+     */
+    @Column(name = "row_hash", nullable = false, updatable = false, length = 64)
+    private String rowHash;
+
+    /** Empreinte de la ligne precedente (chaine d'integrite). */
+    @Column(name = "prev_hash", nullable = false, updatable = false, length = 64)
+    private String prevHash;
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        // Uniquement si le service ne l'a pas deja fixe : l'horodatage entre dans le calcul
+        // de l'empreinte, l'ecraser ici invaliderait la chaine des l'insertion.
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        }
     }
 }
