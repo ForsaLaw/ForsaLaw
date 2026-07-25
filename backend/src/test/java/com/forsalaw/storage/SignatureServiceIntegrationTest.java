@@ -12,6 +12,10 @@ import com.forsalaw.userManagement.service.IdSequenceService;
 import com.forsalaw.util.HashingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.junit.jupiter.Container;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -38,6 +42,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SignatureServiceIntegrationTest extends AbstractStorageIntegrationTest {
 
     private static final String PREFIXE_TEMPORAIRES = "forsalaw-sign-";
+
+    // Conteneur propre a cette classe : voir l'explication dans AbstractStorageIntegrationTest.
+    @Container
+    static final MinIOContainer MINIO = new MinIOContainer(IMAGE_MINIO);
+
+    @DynamicPropertySource
+    static void proprietesStockage(DynamicPropertyRegistry registry) {
+        enregistrerProprietesStockage(registry, MINIO);
+    }
 
     @Autowired
     SignatureService signatureService;

@@ -6,9 +6,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MinIOContainer;
-import org.testcontainers.junit.jupiter.Container;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException;
 
@@ -19,22 +17,27 @@ import java.io.IOException;
  * Base des tests d'integration du stockage objet : ajoute un vrai MinIO au PostgreSQL
  * de {@link AbstractIntegrationTest}.
  *
- * <p>Le conteneur et les proprietes sont declares ici plutot que dans chaque test : les classes
- * filles partagent ainsi le meme conteneur ET le meme contexte Spring (les proprietes injectees
- * etant identiques, Spring reutilise le contexte en cache au lieu d'en redemarrer un).</p>
+ * <p><b>Chaque classe fille declare son PROPRE conteneur MinIO</b> — ne pas le remonter ici
+ * pour "mutualiser". Un conteneur {@code static @Container} est arrete a la fin de chaque
+ * classe de test, alors qu'un contexte Spring dont toutes les proprietes sont identiques est
+ * mis en cache et reutilise d'une classe a l'autre. Le conteneur repart alors sur un nouveau
+ * port aleatoire pendant que le S3Client du contexte cache pointe toujours sur l'ancien :
+ * "Connection refused". Un conteneur par classe garantit des proprietes distinctes, donc un
+ * contexte par classe, cree apres le demarrage de ses propres conteneurs.</p>
+ *
+ * <p><b>Prerequis :</b> un daemon Docker (CI : ubuntu-latest ; en local : Docker Desktop).</p>
  */
 public abstract class AbstractStorageIntegrationTest extends AbstractIntegrationTest {
 
     protected static final String BUCKET = "forsalaw-test";
+    protected static final String IMAGE_MINIO = "minio/minio:RELEASE.2024-06-13T22-53-53Z";
 
-    @Container
-    static final MinIOContainer MINIO = new MinIOContainer("minio/minio:RELEASE.2024-06-13T22-53-53Z");
-
-    @DynamicPropertySource
-    static void proprietesStockage(DynamicPropertyRegistry registry) {
-        registry.add("forsalaw.storage.s3.endpoint-override", MINIO::getS3URL);
-        registry.add("forsalaw.storage.s3.access-key", MINIO::getUserName);
-        registry.add("forsalaw.storage.s3.secret-key", MINIO::getPassword);
+    /** A appeler depuis le {@code @DynamicPropertySource} de chaque classe fille. */
+    protected static void enregistrerProprietesStockage(DynamicPropertyRegistry registry,
+                                                        MinIOContainer minio) {
+        registry.add("forsalaw.storage.s3.endpoint-override", minio::getS3URL);
+        registry.add("forsalaw.storage.s3.access-key", minio::getUserName);
+        registry.add("forsalaw.storage.s3.secret-key", minio::getPassword);
         registry.add("forsalaw.storage.s3.bucket", () -> BUCKET);
         // MinIO ne gere pas les URLs virtual-host (bucket.hote/...) : path-style obligatoire.
         registry.add("forsalaw.storage.s3.path-style-access", () -> true);
