@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
-import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -55,14 +54,14 @@ class StompBrokerRelayIntegrationTest extends AbstractIntegrationTest {
         registry.add("forsalaw.websocket.broker.system-passcode", RABBITMQ::getAdminPassword);
     }
 
-    // Spring declare TOUJOURS les deux beans de broker : celui qui n'est pas configure est
-    // remplace par une implementation "no-op". Il faut donc les qualifier par nom, sinon
-    // l'injection par type est ambigue.
+    // Spring declare TOUJOURS les deux methodes @Bean de broker, mais celle qui ne correspond
+    // pas a la configuration retourne null (bean nul). D'ou : qualification par nom (l'injection
+    // par type serait ambigue) et required=false pour celui qui doit etre absent.
     @Autowired
     @Qualifier("stompBrokerRelayMessageHandler")
     AbstractBrokerMessageHandler brokerRelais;
 
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("simpleBrokerMessageHandler")
     AbstractBrokerMessageHandler brokerEnMemoire;
 
@@ -70,7 +69,8 @@ class StompBrokerRelayIntegrationTest extends AbstractIntegrationTest {
     void relaisActive_leBrokerExterneEstUtiliseEtJoignable() throws InterruptedException {
         // Le broker en memoire a bien ete remplace par le relais.
         assertThat(brokerRelais).isInstanceOf(StompBrokerRelayMessageHandler.class);
-        assertThat(brokerEnMemoire).isNotInstanceOf(SimpleBrokerMessageHandler.class);
+        // Le broker en memoire n'est pas seulement inactif : son bean n'est pas cree du tout.
+        assertThat(brokerEnMemoire).isNull();
 
         StompBrokerRelayMessageHandler relais = (StompBrokerRelayMessageHandler) brokerRelais;
         assertThat(relais.getRelayPort()).isEqualTo(RABBITMQ.getMappedPort(PORT_STOMP));

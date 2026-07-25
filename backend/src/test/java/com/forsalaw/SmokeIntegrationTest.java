@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.messaging.simp.broker.AbstractBrokerMessageHandler;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
-import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,14 +19,14 @@ class SmokeIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     ApplicationContext applicationContext;
 
-    // Spring declare TOUJOURS les deux beans de broker : celui qui n'est pas configure est
-    // remplace par une implementation "no-op". Il faut donc les qualifier par nom, sinon
-    // l'injection par type est ambigue.
+    // Spring declare TOUJOURS les deux methodes @Bean de broker, mais celle qui ne correspond
+    // pas a la configuration retourne null (bean nul). D'ou : qualification par nom (l'injection
+    // par type serait ambigue) et required=false pour celui qui doit etre absent.
     @Autowired
     @Qualifier("simpleBrokerMessageHandler")
     AbstractBrokerMessageHandler brokerEnMemoire;
 
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("stompBrokerRelayMessageHandler")
     AbstractBrokerMessageHandler brokerRelais;
 
@@ -44,6 +43,7 @@ class SmokeIntegrationTest extends AbstractIntegrationTest {
     @Test
     void sansConfigurationDeRelais_leBrokerEnMemoireEstUtilise() {
         assertThat(brokerEnMemoire).isInstanceOf(SimpleBrokerMessageHandler.class);
-        assertThat(brokerRelais).isNotInstanceOf(StompBrokerRelayMessageHandler.class);
+        // Le relais n'est pas seulement inactif : son bean n'est pas cree du tout.
+        assertThat(brokerRelais).isNull();
     }
 }
