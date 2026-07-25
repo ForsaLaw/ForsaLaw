@@ -5,15 +5,15 @@ import com.forsalaw.documentManagement.model.*;
 import com.forsalaw.documentManagement.repository.DocumentAccessLogRepository;
 import com.forsalaw.documentManagement.repository.DocumentMetadataRepository;
 import com.forsalaw.messengerManagement.service.ClamAvScanService;
+import com.forsalaw.storage.S3StorageService;
+import com.forsalaw.storage.StorageException;
 import com.forsalaw.userManagement.entity.User;
 import com.forsalaw.userManagement.repository.UserRepository;
 import com.forsalaw.userManagement.service.IdSequenceService;
 import com.forsalaw.util.HashingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,11 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,9 +31,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DocumentService {
 
-    @Value("${forsalaw.documents.dir:uploads/documents}")
-    private String dossierDocuments;
-
     private final DocumentMetadataRepository documentRepository;
     private final DocumentAccessLogRepository accessLogRepository;
     private final UserRepository userRepository;
@@ -45,6 +38,7 @@ public class DocumentService {
     private final HashingService hashingService;
     private final DocumentFileValidator fileValidator;
     private final ClamAvScanService clamAvScanService;
+    private final S3StorageService storageService;
 
     // ─── Upload ──────────────────────────────────────────────────────────────
 
@@ -58,9 +52,7 @@ public class DocumentService {
     ) throws IOException {
         User deposeur = requireUser(emailDeposeur);
 
-        // 1. Préparer le dossier de stockage
-        Path emplacement = Paths.get(dossierDocuments).toAbsolutePath().normalize();
-        Files.createDirectories(emplacement);
+        // 1. (plus de dossier a preparer : le stockage objet n'a pas d'arborescence a creer)
 
         // 2. Valider le fichier : extension sur liste blanche + vrai type MIME (Tika, anti-spoof).
         //    Rejette par ex. un .jsp renommé .pdf. Retourne l'extension validée (ex. ".pdf").
@@ -75,13 +67,15 @@ public class DocumentService {
 
         // 4. Nom de stockage unique basé UNIQUEMENT sur l'extension validée (nom d'origine ignoré).
         String nomStockage = UUID.randomUUID().toString() + extension;
-        Path cibleFichier = emplacement.resolve(nomStockage);
+        String cleObjet = S3StorageService.DOCUMENTS_PREFIX + nomStockage;
 
         // 5. Calculer le hash SHA-256 AVANT de stocker (pour garantir l'intégrité)
         String hashSha256 = hashingService.calculerHashSha256(fichier.getInputStream());
 
-        // 6. Copier le fichier sur le disque
-        Files.copy(fichier.getInputStream(), cibleFichier, StandardCopyOption.REPLACE_EXISTING);
+        // 6. Deposer le fichier dans le stockage objet
+        try (InputStream contenu = fichier.getInputStream()) {
+            storageService.upload(cleObjet, contenu, fichier.getSize(), fichier.getContentType());
+        }
 
         // 7. Enregistrer les métadonnées en base de données
         DocumentMetadata doc = new DocumentMetadata();
@@ -89,7 +83,7 @@ public class DocumentService {
         doc.setDeposeur(deposeur);
         doc.setNomOriginal(nomOriginal);
         doc.setNomStockage(nomStockage);
-        doc.setCheminFichier(cibleFichier.toString());
+        doc.setCheminFichier(cleObjet);
         doc.setTypeContenu(fichier.getContentType());
         doc.setTailleFichier(fichier.getSize());
         doc.setHashSha256(hashSha256);
@@ -117,30 +111,25 @@ public class DocumentService {
         // Tracer le téléchargement
         enregistrerLog(doc, acteur, ActionDocument.TELECHARGEMENT, servletRequest, null, null);
 
-        try {
-            Path cheminFichier = Paths.get(doc.getCheminFichier());
-            Resource resource = new UrlResource(cheminFichier.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new IllegalStateException("Le fichier est introuvable sur le serveur : " + doc.getNomOriginal());
-            }
-            return resource;
-        } catch (MalformedURLException e) {
-            throw new IllegalStateException("Chemin de fichier invalide.", e);
-        }
+        return ouvrirObjet(doc);
     }
 
     @Transactional(readOnly = true)
     public Resource telechargerDocumentSysteme(String documentId) {
-        DocumentMetadata doc = requireDocument(documentId);
+        return ouvrirObjet(requireDocument(documentId));
+    }
+
+    /**
+     * Ouvre le contenu du document depuis le stockage objet.
+     * Le telechargement reste servi par le backend (et non par une URL pre-signee) car chaque
+     * acces doit rester tracable dans le journal d'audit documentaire.
+     */
+    private Resource ouvrirObjet(DocumentMetadata doc) {
         try {
-            Path cheminFichier = Paths.get(doc.getCheminFichier());
-            Resource resource = new UrlResource(cheminFichier.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new IllegalStateException("Le fichier est introuvable sur le serveur : " + doc.getNomOriginal());
-            }
-            return resource;
-        } catch (MalformedURLException e) {
-            throw new IllegalStateException("Chemin de fichier invalide.", e);
+            return storageService.download(doc.getCheminFichier());
+        } catch (StorageException.ObjectNotFound e) {
+            throw new IllegalStateException(
+                    "Le fichier est introuvable sur le serveur : " + doc.getNomOriginal(), e);
         }
     }
 
@@ -152,8 +141,10 @@ public class DocumentService {
         User acteur = requireUser(emailActeur);
         verifierDroitsAcces(acteur, doc);
 
-        Path cheminFichier = Paths.get(doc.getCheminFichier());
-        String hashActuel = hashingService.calculerHashSha256(Files.newInputStream(cheminFichier));
+        String hashActuel;
+        try (InputStream contenu = storageService.openStream(doc.getCheminFichier())) {
+            hashActuel = hashingService.calculerHashSha256(contenu);
+        }
         boolean integre = hashActuel.equals(doc.getHashSha256());
 
         String details = integre

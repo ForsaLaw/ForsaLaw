@@ -37,7 +37,7 @@ flowchart TB
     end
     JVM["Processus JVM — Spring Boot\nport 8081"]
     NODE["Processus Node — Vite dev\nport 3000"]
-    FS["Disque local — fichiers"]
+    FS["Stockage objet S3 / MinIO"]
   end
 
   subgraph externes["Services externes (configuration)"]
@@ -61,9 +61,9 @@ flowchart TB
   JVM -.-> WA
   JVM -.-> CLAM
 
-  FS --> D1["Coffre documents\n(forsalaw.documents.dir)"]
-  FS --> D2["Pièces jointes messagerie\n(répertoire configuré)"]
-  FS --> D3["Fichiers réclamations\n(stockage service métier)"]
+  FS --> D1["Coffre documents\n(bucket, préfixe documents/)"]
+  FS --> D2["Pièces jointes messagerie\n(via le coffre, par ID document)"]
+  FS --> D3["Fichiers réclamations\n(via le coffre, par ID document)"]
 ```
 
 **Composants physiques concrets**

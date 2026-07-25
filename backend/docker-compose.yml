@@ -22,6 +22,41 @@ services:
       timeout: 5s
       retries: 5
 
+  # Stockage objet compatible S3 pour le developpement local (equivalent d'AWS S3 en prod).
+  # Console web : http://localhost:9001 (minioadmin / minioadmin)
+  minio:
+    image: minio/minio:latest
+    container_name: forsalaw-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - forsalaw_miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Cree le bucket au premier demarrage puis s'arrete (l'application ne cree pas le bucket).
+  minio-init:
+    image: minio/mc:latest
+    container_name: forsalaw-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/forsalaw-documents &&
+      echo 'Bucket forsalaw-documents pret.'
+      "
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: forsalaw-pgadmin
@@ -37,3 +72,4 @@ services:
 
 volumes:
   forsalaw_pgdata:
+  forsalaw_miniodata:

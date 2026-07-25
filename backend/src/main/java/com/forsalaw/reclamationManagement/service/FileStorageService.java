@@ -4,7 +4,6 @@ import com.forsalaw.reclamationManagement.entity.Reclamation;
 import com.forsalaw.reclamationManagement.entity.ReclamationAttachment;
 import com.forsalaw.reclamationManagement.repository.ReclamationAttachmentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.forsalaw.documentManagement.entity.ContexteDocument;
@@ -17,9 +16,6 @@ import java.io.IOException;
 @Service
 @RequiredArgsConstructor
 public class FileStorageService {
-
-    @Value("${forsalaw.upload.dir:uploads/reclamations}")
-    private String dossiersUpload;
 
     private final ReclamationAttachmentRepository attachmentRepository;
     private final ReclamationService reclamationService;
