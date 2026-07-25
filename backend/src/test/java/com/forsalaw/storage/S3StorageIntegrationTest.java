@@ -1,21 +1,10 @@
 package com.forsalaw.storage;
 
-import com.forsalaw.AbstractIntegrationTest;
 import com.forsalaw.util.HashingService;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.MinIOContainer;
-import org.testcontainers.junit.jupiter.Container;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.BucketAlreadyOwnedByYouException;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
@@ -33,41 +22,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p><b>Prerequis :</b> un daemon Docker (CI : ubuntu-latest ; en local : Docker Desktop).</p>
  */
-class S3StorageIntegrationTest extends AbstractIntegrationTest {
-
-    private static final String BUCKET = "forsalaw-test";
-
-    @Container
-    static final MinIOContainer MINIO = new MinIOContainer("minio/minio:RELEASE.2024-06-13T22-53-53Z");
-
-    @DynamicPropertySource
-    static void proprietesStockage(DynamicPropertyRegistry registry) {
-        registry.add("forsalaw.storage.s3.endpoint-override", MINIO::getS3URL);
-        registry.add("forsalaw.storage.s3.access-key", MINIO::getUserName);
-        registry.add("forsalaw.storage.s3.secret-key", MINIO::getPassword);
-        registry.add("forsalaw.storage.s3.bucket", () -> BUCKET);
-        // MinIO ne gere pas les URLs virtual-host (bucket.hote/...) : path-style obligatoire.
-        registry.add("forsalaw.storage.s3.path-style-access", () -> true);
-    }
+class S3StorageIntegrationTest extends AbstractStorageIntegrationTest {
 
     @Autowired
     S3StorageService storageService;
 
     @Autowired
-    S3Client s3Client;
-
-    @Autowired
     HashingService hashingService;
-
-    /** L'application ne cree pas le bucket (idem production) : le test s'en charge. */
-    @BeforeEach
-    void creerBucket() {
-        try {
-            s3Client.createBucket(b -> b.bucket(BUCKET));
-        } catch (BucketAlreadyOwnedByYouException e) {
-            // Bucket deja cree par un test precedent : rien a faire.
-        }
-    }
 
     @Test
     void cycleComplet_depotRelectureIntegriteSuppression() throws IOException {
@@ -105,15 +66,5 @@ class S3StorageIntegrationTest extends AbstractIntegrationTest {
         String cleAbsente = S3StorageService.DOCUMENTS_PREFIX + UUID.randomUUID() + ".pdf";
         storageService.delete(cleAbsente); // S3 ne signale pas l'absence : ne doit pas lever.
         assertThat(storageService.exists(cleAbsente)).isFalse();
-    }
-
-    /** PDF valide d'une page, genere via PDFBox (deja utilise par la signature electronique). */
-    private byte[] pdfMinimal() throws IOException {
-        try (PDDocument document = new PDDocument();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            document.addPage(new PDPage());
-            document.save(out);
-            return out.toByteArray();
-        }
     }
 }
