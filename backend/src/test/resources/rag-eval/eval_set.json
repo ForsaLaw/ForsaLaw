@@ -1,0 +1,104 @@
+{
+  "_README": [
+    "Jeu d'evaluation du RAG juridique tunisien : 10 questions reelles (arabe et francais),",
+    "chacune avec l'article attendu comme verite terrain.",
+    "",
+    "TODO — VALIDATION JURIDIQUE OBLIGATOIRE AVANT USAGE.",
+    "Chaque entree porte \"verified\": false. Les references ci-dessous ont ete redigees a",
+    "partir de connaissances generales du droit tunisien, SANS verification article par",
+    "article contre le texte officiel publie au JORT.",
+    "",
+    "Tant que \"verified\" reste false, les metriques calculees sur ce jeu ne veulent RIEN",
+    "dire : une verite terrain fausse penalise une recherche correcte et recompense une",
+    "recherche fausse. Un jeu d'evaluation errone est pire qu'aucun jeu, parce qu'il donne",
+    "l'illusion de mesurer.",
+    "",
+    "Procedure : un juriste tunisien verifie chaque couple (code_name, article_reference)",
+    "contre le texte en vigueur, corrige si besoin, puis passe \"verified\" a true et",
+    "renseigne \"verified_by\" et \"verified_on\"."
+  ],
+  "schema_version": 1,
+  "embedding_model": "BAAI/bge-m3",
+  "questions": [
+    {
+      "id": "eval-001",
+      "lang": "fr",
+      "question": "Quel est le délai de prescription de droit commun en matière d'obligations en Tunisie ?",
+      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "402" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-002",
+      "lang": "ar",
+      "question": "ما هي شروط صحة العقد في القانون التونسي؟",
+      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "2" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-003",
+      "lang": "fr",
+      "question": "Quel est l'âge minimum légal du mariage en Tunisie ?",
+      "expected": { "code_name": "Code du Statut Personnel", "article_reference": "5" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-004",
+      "lang": "ar",
+      "question": "ما هي الإجراءات القانونية للطلاق في تونس؟",
+      "expected": { "code_name": "Code du Statut Personnel", "article_reference": "31" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-005",
+      "lang": "fr",
+      "question": "Quelle est la durée de la période d'essai dans un contrat de travail à durée indéterminée ?",
+      "expected": { "code_name": "Code du Travail", "article_reference": "6-4" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-006",
+      "lang": "ar",
+      "question": "ما هي عقوبة السرقة في المجلة الجزائية التونسية؟",
+      "expected": { "code_name": "Code Pénal", "article_reference": "264" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-007",
+      "lang": "fr",
+      "question": "Quel est le délai pour former un pourvoi en cassation en matière civile ?",
+      "expected": { "code_name": "Code de Procédure Civile et Commerciale", "article_reference": "185" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-008",
+      "lang": "ar",
+      "question": "ما هو الحد الأدنى لرأس مال الشركة خفية الاسم؟",
+      "expected": { "code_name": "Code des Sociétés Commerciales", "article_reference": "161" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-009",
+      "lang": "fr",
+      "question": "Quelles sont les obligations du bailleur dans un contrat de louage ?",
+      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "742" },
+      "tier": 1,
+      "verified": false
+    },
+    {
+      "id": "eval-010",
+      "lang": "ar",
+      "question": "ما هي مدة الاحتفاظ بالمحضر في حالة التلبس بجريمة؟",
+      "expected": { "code_name": "Code de Procédure Pénale", "article_reference": "13-bis" },
+      "tier": 1,
+      "verified": false
+    }
+  ]
+}
