@@ -8,6 +8,7 @@ import com.forsalaw.affaireManagement.model.AffaireTimelineStepDTO;
 import com.forsalaw.affaireManagement.repository.AffaireRepository;
 import com.forsalaw.auditManagement.entity.AuditLog;
 import com.forsalaw.auditManagement.repository.AuditLogRepository;
+import com.forsalaw.auditManagement.service.AuditChainService;
 import com.forsalaw.rdvManagement.entity.RendezVous;
 import com.forsalaw.rdvManagement.entity.StatutRendezVous;
 import com.forsalaw.userManagement.entity.RoleUser;
@@ -41,6 +42,7 @@ public class AffaireService {
     private final AffaireRepository affaireRepository;
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
+    private final AuditChainService auditChainService;
     private final IdSequenceService idSequenceService;
 
     /**
@@ -222,7 +224,9 @@ public class AffaireService {
         event.setResourceId(affaireId);
         event.setMethod("SYSTEM");
         event.setDetails(details != null && details.length() > 8000 ? details.substring(0, 7997) + "..." : details);
-        auditLogRepository.save(event);
+        // Passage obligatoire par le chainage : un save() direct produirait une ligne sans
+        // empreinte, rejetee par la contrainte NOT NULL posee en V10.
+        auditChainService.append(event);
     }
 
     private AffaireDTO toDTO(Affaire a, boolean includePrivate) {

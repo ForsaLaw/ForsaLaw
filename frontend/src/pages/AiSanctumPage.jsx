@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SendIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import AiConsentModal from '../components/ai/AiConsentModal.jsx'
+import AiDisclaimerBanner from '../components/ai/AiDisclaimerBanner.jsx'
+import { aConsentiVersionCourante } from '../components/ai/aiConsent.js'
 import '../styles/AiSanctum.css'
 
 // Custom hook for the typewriter effect
@@ -41,6 +45,10 @@ const INTRO_DIALOGUE = "Bienvenue dans le Sanctuaire, citoyen. Je suis Fellawra.
 
 const AiSanctumPage = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  // Etat initial lu au montage : si l'utilisateur a deja accepte la version courante du
+  // texte, la modale ne reapparait pas. Une nouvelle version la fait ressurgir.
+  const [consentementDonne, setConsentementDonne] = useState(() => aConsentiVersionCourante())
   const [history, setHistory] = useState([])
   const [currentThought, setCurrentThought] = useState(t('sanctum_intro'))
   const [userInput, setUserInput] = useState('')
@@ -93,6 +101,17 @@ const AiSanctumPage = () => {
 
   return (
     <div className="sanctum-page">
+      {/* Consentement bloquant : tant qu'il n'est pas donne, l'assistant reste inutilisable. */}
+      {!consentementDonne && (
+        <AiConsentModal
+          onAccept={() => setConsentementDonne(true)}
+          onRefuse={() => navigate(-1)}
+        />
+      )}
+
+      {/* Avertissement permanent : visible AU MOMENT de lire la reponse, pas seulement a l'entree. */}
+      <AiDisclaimerBanner />
+
       {/* Background Sprite */}
       <div className="sanctum-sprite-container">
         <motion.img 

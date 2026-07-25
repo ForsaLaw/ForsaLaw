@@ -312,5 +312,17 @@
   "lawyer_space_deactivate_section": "Deactivate lawyer profile",
   "lawyer_space_deactivate_hint": "Your lawyer profile will no longer appear in public listings. Requires the lawyer role on your session.",
   "lawyer_space_deactivate": "Deactivate my lawyer profile",
-  "lawyer_space_deactivate_confirm": "Deactivate your lawyer profile on ForsaLaw? You can contact support if this was a mistake."
+  "lawyer_space_deactivate_confirm": "Deactivate your lawyer profile on ForsaLaw? You can contact support if this was a mistake.",
+  "ai_disclaimer_title": "This is not legal advice.",
+  "ai_disclaimer_body": "Fellawra is a demonstration assistant. Its answers are generated automatically, may be inaccurate, and are no substitute for advice from a qualified lawyer.",
+  "ai_consent_title": "Before using the assistant",
+  "ai_consent_intro": "Please read the following before asking a question.",
+  "ai_consent_point_not_advice": "Answers do not constitute legal advice and carry no professional liability.",
+  "ai_consent_point_demo": "The assistant is currently a demonstration: its answers are pre-written and are not an analysis of your situation.",
+  "ai_consent_point_no_data": "Nothing you type here is sent to a server or to any third party: it all stays in your browser.",
+  "ai_consent_point_lawyer": "For a real matter, consult a lawyer through the platform: only they can advise you.",
+  "ai_consent_checkbox": "I have read and understood this information.",
+  "ai_consent_accept": "I understand, continue",
+  "ai_consent_decline": "Go back",
+  "ai_consent_version": "Version {{version}} of this notice."
 }

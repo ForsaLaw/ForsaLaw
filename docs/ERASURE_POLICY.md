@@ -40,6 +40,42 @@ Because that is an `UPDATE` on an immutable table (rejected by the V8 trigger). 
 the **referenced** `users` row achieves the same privacy outcome (the actor is no longer
 identifiable) **without** mutating the audit record — the whole point of an immutable log.
 
+## Backups — erasure is not immediate
+
+`scripts/backup-db.sh` keeps **30 days** of full PostgreSQL dumps (`BACKUP_RETENTION_DAYS`).
+A dump is a complete copy of the database, personal data included.
+
+**Consequence: an erasure request is not fully satisfied at the moment we anonymize the
+`users` row.** The pre-anonymization values survive in every backup taken before it, and
+disappear only as those backups age out — **up to 30 days later**.
+
+This is the standard, defensible position (restoring a backup to surgically edit it would
+destroy the integrity of the whole dataset, including the sealed audit trail), but it must be
+handled explicitly rather than ignored:
+
+- **Tell the data subject.** The erasure acknowledgement should state that residual copies
+  persist in backups for up to 30 days and are then destroyed.
+- **Never restore a backup to "recover" an erased account.** If a restore happens for
+  unrelated reasons, the anonymization must be **re-applied** to any account erased between
+  the backup date and the restore. This step is easy to forget and would silently resurrect
+  personal data the platform promised to delete.
+- **Retention alignment.** `BACKUP_RETENTION_DAYS` is the upper bound on the erasure delay.
+  Raising it lengthens the window and must be a deliberate, documented decision.
+
+## Audit chain anchoring
+
+`V10__audit_log_hash_chain.sql` chains every audit row to the previous one, so any edit,
+deletion or insertion is detectable via `GET /api/admin/audit-logs/integrity`.
+
+One limit is worth stating plainly: **a chain stored in the same database can be recomputed
+in full by anyone with complete access to that database.** The chain becomes genuinely
+tamper-evident only once its head is anchored **outside** the database — an offsite copy that
+an attacker on the application host cannot rewrite. The backup bucket is the natural place for
+that anchor; wiring the periodic export is an open item below.
+
+**Always verify integrity after a restore** (`scripts/restore-db.sh` prints the reminder):
+a doctored dump is exactly the attack the chain exists to catch.
+
 ## Notes / open items (DPO to confirm)
 
 - The audit rows themselves may embed personal data (e.g. `ip_address`, `user_agent`). These
@@ -48,3 +84,8 @@ identifiable) **without** mutating the audit record — the whole point of an im
   **retention period** and lawful basis must be confirmed and documented by the DPO.
 - The anonymization routine (the in‑place `users` update + photo removal) is a data‑layer
   operation on operational tables and is **not** blocked by the audit immutability trigger.
+- **Offsite backups are still required.** `docker-compose.prod.yml` runs MinIO on the same host
+  as PostgreSQL, so losing that host loses the database *and* its backups. Point
+  `BACKUP_S3_ENDPOINT` at external storage before treating this as disaster recovery.
+- **Chain-head anchoring is not yet automated.** Exporting the current chain head to the backup
+  bucket on each run would close the "attacker recomputes the whole chain" gap described above.
