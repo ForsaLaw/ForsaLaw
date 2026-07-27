@@ -7,8 +7,11 @@ import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Analyse du HTML de l'IORT — TOUS les selecteurs CSS du projet sont regroupes ici.
@@ -32,8 +35,20 @@ public class JortHtmlParser {
     @Value("${forsalaw.rag.jort.selector.issue-content:.contenu, .content, article, main}")
     private String selecteurContenu;
 
-    /** Un numero du JORT repere sur la page de listing. */
-    public record NumeroJort(String reference, String url) {}
+    /**
+     * Un numero du JORT repere sur la page de listing.
+     *
+     * @param publicationDate date de parution, {@code null} si elle n'a pas pu etre lue.
+     *                        Ne JAMAIS y mettre la date du jour en remplacement : le corpus
+     *                        couvre 1957-2026 et cette date pilote la distinction
+     *                        ACTIVE / SUPERSEDED. Une date absente est exploitable ; une
+     *                        date fausse contamine le versionnement.
+     */
+    public record NumeroJort(String reference, String url, LocalDate publicationDate) {}
+
+    /** Dates rencontrees dans les libelles de numeros : 12/03/2024, 12-03-2024, 2024. */
+    private static final Pattern DATE_LIBELLE = Pattern.compile(
+            "(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})|\\b(19\\d{2}|20\\d{2})\\b");
 
     /**
      * Extrait les numeros listes sur une page d'index.
@@ -50,7 +65,7 @@ public class JortHtmlParser {
                 if (url.isEmpty() || libelle.isEmpty()) {
                     continue;
                 }
-                numeros.add(new NumeroJort(libelle, url));
+                numeros.add(new NumeroJort(libelle, url, lireDate(libelle)));
             }
         } catch (RuntimeException e) {
             log.error("Analyse de la page d'index JORT impossible (structure du site modifiee ?).", e);
@@ -62,6 +77,32 @@ public class JortHtmlParser {
                     selecteurLienNumero);
         }
         return numeros;
+    }
+
+    /**
+     * Lit une date de parution dans le libelle du lien.
+     * Renvoie {@code null} plutot qu'une approximation : mieux vaut une date absente qu'une
+     * date inventee dans une colonne qui pilote le versionnement.
+     */
+    LocalDate lireDate(String libelle) {
+        if (libelle == null || libelle.isBlank()) {
+            return null;
+        }
+        Matcher m = DATE_LIBELLE.matcher(libelle);
+        if (!m.find()) {
+            return null;
+        }
+        try {
+            if (m.group(3) != null) {
+                return LocalDate.of(Integer.parseInt(m.group(3)),
+                        Integer.parseInt(m.group(2)), Integer.parseInt(m.group(1)));
+            }
+            // Annee seule : on ne fabrique pas un jour et un mois, on renonce.
+            return null;
+        } catch (RuntimeException e) {
+            log.debug("Date illisible dans le libelle « {} ».", libelle);
+            return null;
+        }
     }
 
     /** Extrait le texte utile d'une page de numero. */

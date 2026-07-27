@@ -89,7 +89,9 @@ services:
   # Image CPU par defaut : pour ingerer un corpus complet, basculer sur une image GPU
   # (ghcr.io/huggingface/text-embeddings-inference:1.5) et declarer les ressources GPU.
   embeddings:
-    image: ${EMBEDDING_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.5}
+    # 1.7 minimum : le telechargeur de la 1.5 echoue sur bge-m3 (« relative URL without
+    # a base »). Voir le commentaire dans backend/docker-compose.yml.
+    image: ${EMBEDDING_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.7}
     container_name: forsalaw-embeddings
     restart: unless-stopped
     command: --model-id ${EMBEDDING_MODEL:-BAAI/bge-m3} --port 80
