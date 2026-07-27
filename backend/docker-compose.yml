@@ -97,7 +97,19 @@ services:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
     container_name: forsalaw-embeddings
     restart: unless-stopped
-    command: --model-id BAAI/bge-m3 --port 80
+    # --max-batch-tokens est INDISPENSABLE. Au defaut de TEI (16384), le lot de chauffe
+    # fait traverser 16384 jetons aux 24 couches du modele, par-dessus 2,2 Go de poids en
+    # float32 : le conteneur se fait tuer par le noyau (OOMKilled) juste apres
+    # « Warming up model », sans message d'erreur, et repart en boucle indefiniment.
+    # Constate sur une VM Docker de 8 Go. A 2048 jetons, le service est sain en ~20 s.
+    # Les chunks d'articles font quelques centaines de jetons : un lot plus large
+    # n'apporterait rien, le processeur etant de toute facon le facteur limitant.
+    #
+    # --max-client-batch-size est un plafond de VALIDATION de requete, pas un garde-fou
+    # memoire : TEI redecoupe ensuite selon --max-batch-tokens. Il doit rester >= a
+    # forsalaw.rag.embedding.batch-size (16) cote Java, sinon TEI renvoie
+    # « HTTP 413 batch size 16 > maximum allowed batch size 8 » et l'ingestion echoue.
+    command: --model-id BAAI/bge-m3 --port 80 --max-batch-tokens 2048 --max-client-batch-size 32
     ports:
       - "8090:80"
     volumes:

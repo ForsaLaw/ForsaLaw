@@ -94,7 +94,15 @@ services:
     image: ${EMBEDDING_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.7}
     container_name: forsalaw-embeddings
     restart: unless-stopped
-    command: --model-id ${EMBEDDING_MODEL:-BAAI/bge-m3} --port 80
+    # --max-batch-tokens : voir backend/docker-compose.yml. Au defaut de TEI (16384), le
+    # lot de chauffe fait tuer le conteneur par le noyau (OOMKilled) sans message, en
+    # boucle. Ici la consequence est plus grave qu'en developpement : le backend attend
+    # « embeddings » en service_healthy, donc TOUTE l'application reste bloquee au
+    # demarrage. Ne relever cette valeur qu'apres avoir mesure la memoire disponible.
+    command: >
+      --model-id ${EMBEDDING_MODEL:-BAAI/bge-m3} --port 80
+      --max-batch-tokens ${EMBEDDING_MAX_BATCH_TOKENS:-2048}
+      --max-client-batch-size ${EMBEDDING_MAX_CLIENT_BATCH:-32}
     volumes:
       - forsalaw_embeddings_cache:/data
     networks: [forsalaw-net]
