@@ -169,6 +169,55 @@ class LegalArticleChunkerTest {
         assertThat(chunks.get(0).contenu()).contains("Article 38");
     }
 
+    /**
+     * Le texte anterieur au premier article ne doit pas disparaitre.
+     *
+     * <p>Mesure sur le corpus converti avant correction : un arret de cassation perdait
+     * 83 % de son texte — en-tete, faits et procedure precedent la premiere occurrence de
+     * « الفصل N », et tout ce qui precedait le premier marqueur etait jete. Une page de code
+     * commencant par un decret de promulgation en perdait 33 %.</p>
+     */
+    @Test
+    void texteAvantLePremierArticle_estConserveSansReference() {
+        String texte = """
+                Decret de promulgation du 15 decembre 1906.
+                Vu la deliberation du conseil, il est statue ce qui suit.
+
+                Article premier
+                Le present code entre en vigueur le 1er juin 1907.
+
+                Article 2
+                Sont abrogees toutes dispositions anterieures contraires.
+                """;
+
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper(texte);
+
+        assertThat(chunks).hasSize(3);
+        // Le preambule vient en tete, sans reference : ce n'est pas un article.
+        assertThat(chunks.get(0).articleReference()).isNull();
+        assertThat(chunks.get(0).contenu()).contains("Decret de promulgation");
+        assertThat(chunks.get(1).articleReference()).isEqualTo("1");
+        assertThat(chunks.get(2).articleReference()).isEqualTo("2");
+    }
+
+    @Test
+    void arretCitantUnArticle_neJetteNiLesFaitsNiLaProcedure() {
+        // Un arret n'est pas structure en articles : il en cite. Tout ce qui precede la
+        // citation est le coeur de la decision et doit rester indexable.
+        String arret = "Cour de cassation, arret n° 35455 du 14 mars 2022.\n"
+                + "Attendu que le demandeur soutient que la societe a ete dissoute. ".repeat(8)
+                + "\nالفصل 278\nيقتضي هذا الفصل ما يلي.";
+
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper(arret);
+
+        String tout = chunks.stream().map(LegalArticleChunker.Chunk::contenu)
+                .reduce("", (a, b) -> a + b);
+        assertThat(tout).contains("Cour de cassation");
+        assertThat(tout).contains("le demandeur soutient");
+        // Le passage de tete ne doit surtout pas etre etiquete « article 278 ».
+        assertThat(chunks.get(0).articleReference()).isNull();
+    }
+
     @Test
     void texteSansMarqueurDArticle_estDecoupeParFenetres() {
         ReflectionTestUtils.setField(chunker, "maxCaracteres", 100);

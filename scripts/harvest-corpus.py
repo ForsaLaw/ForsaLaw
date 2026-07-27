@@ -32,6 +32,7 @@
 #   reprise sur incident plutot que rafales de reessais. Ne pas descendre --delay sous 1 s.
 
 import argparse
+import collections
 import hashlib
 import html
 import http.client
@@ -826,13 +827,102 @@ def harvest_africa(args):
     print(f"\nTermine. {stats}")
 
 
+# ---------------------------------------------------------------- bct.gov.tn
+
+BCT = "https://www.bct.gov.tn/bct/siteprod/"
+BCT_CIRCULAIRES = BCT + "page.jsp?id=226"
+BCT_PUBLICATIONS = BCT + "page.jsp?id=76"
+
+# Cir_2016_10_fr.pdf, Note_2024_163_ar.pdf, NB_2020_01_fr.pdf...
+BCT_NOM = re.compile(r"^(Cir|Note|NB|CB|CI)[_-]?(\d{4})[_-]?(\d+)?[_-]?(fr|ar)?", re.I)
+BCT_TYPES = {"cir": "Circulaire", "note": "Note", "nb": "Note aux banques",
+             "cb": "Circulaire", "ci": "Circulaire"}
+
+
+def harvest_bct(args):
+    """Circulaires et notes de la Banque Centrale de Tunisie.
+
+    Strate reglementaire bancaire et de change, absente de toutes les autres sources :
+    le droit du change tunisien vit dans ces circulaires, pas dans un code.
+
+    Le site ne sert pas de robots.txt (l'application JSP repond 503 sur les chemins
+    inconnus) : aucune restriction annoncee, on s'en tient donc a la civilite habituelle.
+    """
+    out = os.path.join(args.out, "bct")
+    os.makedirs(os.path.join(out, "pdf"), exist_ok=True)
+    fetcher = Fetcher(args.delay)
+    man = Manifest(os.path.join(out, "manifest.jsonl"))
+    print(f"Reprise : {len(man.seen)} document(s) deja au manifeste.")
+
+    cibles = {}
+    for page, etiquette in ((BCT_CIRCULAIRES, ""), (BCT_PUBLICATIONS, "Compilation")):
+        try:
+            corps = fetcher.get(page)
+        except RuntimeError as e:
+            print(f"  page {page} injoignable : {e}", file=sys.stderr)
+            continue
+        for href, brut in re.findall(r'<a[^>]*href=["\']([^"\']*\.pdf)["\'][^>]*>(.*?)</a>',
+                                     corps, re.S | re.I):
+            href = html.unescape(href)
+            titre = html.unescape(re.sub(r"<[^>]+>", " ", brut))
+            titre = re.sub(r"\s+", " ", titre).strip()
+            nom = href.split("/")[-1]
+            # La page « publications » liste aussi des rapports et bulletins : on ne
+            # retient que les recueils reglementaires.
+            if etiquette == "Compilation" and "eglementation" not in nom:
+                continue
+            cibles.setdefault(nom, (href, titre, etiquette))
+    print(f"{len(cibles)} document(s) repere(s).\n")
+
+    stats = collections.Counter()
+    for i, (nom, (href, titre, etiquette)) in enumerate(sorted(cibles.items()), 1):
+        if nom in man.seen:
+            continue
+        url = urllib.parse.urljoin(BCT, href)
+        chemin = os.path.join(out, "pdf", nom_court(nom))
+        try:
+            blob = fetcher.get(url, binary=True)
+            with open(chemin, "wb") as fh:
+                fh.write(blob)
+            info = inspect_pdf(chemin, "")
+            empreinte = sha256(chemin)
+        except Exception as e:
+            print(f"[{i}/{len(cibles)}] ECHEC {nom} ({type(e).__name__}: {e})",
+                  file=sys.stderr, flush=True)
+            stats["echec"] += 1
+            continue
+
+        m = BCT_NOM.match(nom)
+        type_doc = etiquette or (BCT_TYPES.get(m.group(1).lower(), "Autre") if m else "Autre")
+        annee = int(m.group(2)) if m and m.group(2) else None
+        numero = m.group(3) if m and m.group(3) else ""
+        lang = (m.group(4).lower() if m and m.group(4)
+                else ("ar" if info["arabic_chars"] > max(1, info["chars"]) * 0.3 else "fr"))
+
+        stats["ok" if info["text_layer"] else "sans_texte"] += 1
+        man.add({
+            "key": nom, "source": "bct", "doc_type": type_doc, "year": annee,
+            "number": numero, "lang": lang, "title": titre, "url": url,
+            "pdf_path": os.path.relpath(chemin, args.out).replace("\\", "/"),
+            "bytes": len(blob), "sha256": empreinte, "pages": info["pages"],
+            "chars": info["chars"], "arabic_chars": info["arabic_chars"],
+            "text_layer": info["text_layer"], "fetched_at": now(),
+        })
+        if i % 50 == 0 or i == len(cibles):
+            print(f"[{i}/{len(cibles)}] {stats['ok']} ok · {stats['sans_texte']} sans "
+                  f"couche texte · {stats['echec']} echecs", flush=True)
+
+    man.close()
+    print(f"\nTermine. {dict(stats)}")
+
+
 # ---------------------------------------------------------------- cli
 
 def main():
     ap = argparse.ArgumentParser(
         description="Collecte hors ligne du corpus juridique tunisien.")
     ap.add_argument("source", choices=["cassation", "jurisite", "legislation-securite",
-                                       "jort", "africa-laws"])
+                                       "jort", "africa-laws", "bct"])
     ap.add_argument("--out", required=True,
                     help="repertoire de transit — A TENIR HORS DU DEPOT (~2 Go)")
     ap.add_argument("--delay", type=float, default=1.5,
@@ -857,7 +947,8 @@ def main():
      "jurisite": harvest_jurisite,
      "legislation-securite": harvest_legsec,
      "jort": harvest_jort,
-     "africa-laws": harvest_africa}[args.source](args)
+     "africa-laws": harvest_africa,
+     "bct": harvest_bct}[args.source](args)
     print(f"Duree : {(time.time() - started) / 60:.1f} min")
 
 

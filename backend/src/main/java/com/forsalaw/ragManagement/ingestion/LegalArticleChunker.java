@@ -102,6 +102,18 @@ public class LegalArticleChunker {
         }
 
         List<Chunk> chunks = new ArrayList<>();
+
+        // Le texte qui PRECEDE le premier marqueur n'appartient a aucun article : decret de
+        // promulgation, expose des motifs, ou — pour un arret — l'en-tete, les faits et la
+        // procedure. Sans ce chunk il disparaissait purement et simplement.
+        // Mesure sur le corpus converti : 83 % du texte d'un arret de cassation et 33 %
+        // d'une page de code commencant par un expose partaient a la poubelle.
+        // Reference nulle : ce passage n'est pas un article et ne doit pas etre cite comme tel.
+        String tete = texte.substring(0, positions.get(0)).trim();
+        if (!tete.isEmpty()) {
+            chunks.addAll(decouperParFenetres(tete, null));
+        }
+
         for (int i = 0; i < positions.size(); i++) {
             int fin = (i + 1 < positions.size()) ? positions.get(i + 1) : texte.length();
             String corps = texte.substring(positions.get(i), fin).trim();
