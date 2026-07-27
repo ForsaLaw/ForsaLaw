@@ -1,6 +1,8 @@
 package com.forsalaw.ragManagement.ingestion;
 
+import com.forsalaw.ragManagement.instrument.DcafStatutNormalizer;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository;
+import com.forsalaw.ragManagement.repository.LegalInstrumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,8 +20,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -49,6 +54,7 @@ public class CorpusImportRunner implements ApplicationRunner {
 
     private final LegalDocumentIngestionService ingestionService;
     private final LegalDocumentChunkRepository chunkRepository;
+    private final LegalInstrumentRepository instrumentRepository;
     private final ApplicationContext contexte;
 
     @Value("${forsalaw.rag.corpus-import.directory}")
@@ -65,8 +71,10 @@ public class CorpusImportRunner implements ApplicationRunner {
     private int limite;
 
     /**
-     * Date d'effet appliquee a tout le lot. Laissee vide par defaut : mieux vaut une date
-     * absente qu'une date inventee, cette colonne pilotant la distinction ACTIVE/SUPERSEDED.
+     * Date d'effet par defaut, utilisee seulement quand le fichier n'a pas de champ
+     * {@code posted} propre (jurisite). Laissee vide par defaut : mieux vaut une date absente
+     * qu'une date inventee, cette colonne pilotant desormais aussi le classement temporel des
+     * resultats de recherche.
      */
     @Value("${forsalaw.rag.corpus-import.effective-date:}")
     private String dateEffet;
@@ -103,7 +111,7 @@ public class CorpusImportRunner implements ApplicationRunner {
             return;
         }
 
-        LocalDate effet = dateEffet == null || dateEffet.isBlank() ? null : LocalDate.parse(dateEffet);
+        LocalDate effetParDefaut = dateEffet == null || dateEffet.isBlank() ? null : LocalDate.parse(dateEffet);
 
         log.info("Import de corpus : {} fichier(s) sous « {} », code « {} », niveau {}.",
                 fichiers.size(), racine, codeName, tier);
@@ -112,7 +120,7 @@ public class CorpusImportRunner implements ApplicationRunner {
         Instant debut = Instant.now();
 
         for (int i = 0; i < fichiers.size(); i++) {
-            traiter(fichiers.get(i), racineChemin, effet, c);
+            traiter(fichiers.get(i), racineChemin, effetParDefaut, c);
             if ((i + 1) % 25 == 0 || i + 1 == fichiers.size()) {
                 journaliserProgression(i + 1, fichiers.size(), debut, c);
             }
@@ -124,7 +132,7 @@ public class CorpusImportRunner implements ApplicationRunner {
                 c.ingeres, c.deja, c.vides, c.echecs, c.chunks);
     }
 
-    private void traiter(Path fichier, Path racineChemin, LocalDate effet, Compteurs c) {
+    private void traiter(Path fichier, Path racineChemin, LocalDate effetParDefaut, Compteurs c) {
         // Chemin relatif normalise en separateurs « / » : la reference doit etre identique
         // sous Windows et sous Linux, sinon une reprise sur une autre machine reingererait tout.
         String reference = racineChemin.relativize(fichier).toString().replace('\\', '/');
@@ -147,17 +155,38 @@ public class CorpusImportRunner implements ApplicationRunner {
             // est : sans cela, les 1 836 fichiers de Jurisite porteraient tous le meme
             // code_name, et le rapprochement (code_name, article_reference) sur lequel
             // repose la detection d'abrogation confondrait des articles 1 sans rapport.
-            String code = enTete.code() != null ? enTete.code() : codeName;
+            //
+            // A defaut de « code: », un repli sur « id: » (namespace par le code CLI) :
+            // legislation-securite (DCAF) n'a PAS de champ « code », et sans ce repli ses
+            // 5 528 documents autonomes s'empileraient tous sous le meme code_name generique
+            // -- la meme classe de bug, juste sur une autre source.
+            String code = enTete.code() != null ? enTete.code()
+                    : enTete.id() != null ? codeName + ":" + enTete.id()
+                    : codeName;
+
+            // Date de PUBLICATION propre au fichier (« posted », DCAF/cassation/bct) quand
+            // elle existe : un parametre CLI unique pour tout un repertoire de 5 528 documents
+            // publies a des dates differentes leur donnerait a tous la MEME date d'effet.
+            LocalDate effet = enTete.posted() != null ? enTete.posted() : effetParDefaut;
 
             var resultat = ingestionService.ingererTexte(texte,
                     new LegalDocumentIngestionService.DemandeIngestion(
-                            code, reference, tier, null, effet, null));
+                            code, reference, tier, null, effet, enTete.title()));
 
             if (resultat.chunksCrees() == 0) {
                 c.vides++;
             } else {
                 c.ingeres++;
                 c.chunks += resultat.chunksCrees();
+            }
+
+            // legislation-securite (DCAF) publie un statut par document (en vigueur / abroge /
+            // n'est plus en vigueur) : une source publisher-maintained de statut d'instrument,
+            // qu'il vaut mieux reprendre que re-deviner par regex sur un texte qu'on n'a pas
+            // ecrit (V12). N'ecrit rien si le fichier n'a pas de champ « statut ».
+            if (!enTete.statut().isEmpty()) {
+                instrumentRepository.importerDepuisDcaf(
+                        code, enTete.title(), effet, DcafStatutNormalizer.normaliser(enTete.statut()));
             }
 
         } catch (IOException | RuntimeException e) {
@@ -199,28 +228,58 @@ public class CorpusImportRunner implements ApplicationRunner {
      * YAML. Un en-tete absent ou malforme rend le fichier entier comme corps, ce qui degrade
      * la qualite mais n'interrompt pas un import de plusieurs heures.</p>
      */
-    record EnTete(String corps, String code) {
+    record EnTete(String corps, String code, String id, String title, LocalDate posted, List<String> statut) {
 
         private static final String DELIMITEUR = "---";
-        private static final java.util.regex.Pattern CODE =
-                java.util.regex.Pattern.compile("(?m)^code:\\s*\"?([^\"\\r\\n]+?)\"?\\s*$");
+        private static final Pattern CODE = Pattern.compile("(?m)^code:\\s*\"?([^\"\\r\\n]+?)\"?\\s*$");
+        private static final Pattern ID = Pattern.compile("(?m)^id:\\s*\"?([^\"\\r\\n]+?)\"?\\s*$");
+        private static final Pattern TITLE = Pattern.compile("(?m)^title:\\s*\"([^\"\\r\\n]*)\"\\s*$");
+        private static final Pattern POSTED = Pattern.compile("(?m)^posted:\\s*\"?(\\d{4}-\\d{2}-\\d{2})\"?\\s*$");
+        private static final Pattern STATUT_LIGNE = Pattern.compile("(?m)^statut:\\s*(\\[.*])\\s*$");
+        private static final Pattern STATUT_VALEUR = Pattern.compile("\"([^\"]*)\"");
 
         static EnTete lire(String contenu) {
             String normalise = contenu.stripLeading();
             if (!normalise.startsWith(DELIMITEUR)) {
-                return new EnTete(contenu, null);
+                return new EnTete(contenu, null, null, null, null, List.of());
             }
             // Fin du bloc : le « --- » suivant, en debut de ligne.
             int fin = normalise.indexOf("\n" + DELIMITEUR, DELIMITEUR.length());
             if (fin < 0) {
-                return new EnTete(contenu, null);
+                return new EnTete(contenu, null, null, null, null, List.of());
             }
 
             String bloc = normalise.substring(DELIMITEUR.length(), fin);
             String corps = normalise.substring(fin + 1 + DELIMITEUR.length()).stripLeading();
 
-            var m = CODE.matcher(bloc);
-            return new EnTete(corps, m.find() ? m.group(1).trim() : null);
+            String code = extraireGroupe(CODE, bloc);
+            String id = extraireGroupe(ID, bloc);
+            String title = extraireGroupe(TITLE, bloc);
+            LocalDate posted = null;
+            String postedTexte = extraireGroupe(POSTED, bloc);
+            if (postedTexte != null) {
+                try {
+                    posted = LocalDate.parse(postedTexte);
+                } catch (RuntimeException ignored) {
+                    // Date malformee : laissee absente plutot qu'incorrecte.
+                }
+            }
+
+            List<String> statut = new ArrayList<>();
+            Matcher ligneStatut = STATUT_LIGNE.matcher(bloc);
+            if (ligneStatut.find()) {
+                Matcher valeurs = STATUT_VALEUR.matcher(ligneStatut.group(1));
+                while (valeurs.find()) {
+                    statut.add(valeurs.group(1));
+                }
+            }
+
+            return new EnTete(corps, code, id, title, posted, statut);
+        }
+
+        private static String extraireGroupe(Pattern motif, String bloc) {
+            Matcher m = motif.matcher(bloc);
+            return m.find() ? m.group(1).trim() : null;
         }
     }
 

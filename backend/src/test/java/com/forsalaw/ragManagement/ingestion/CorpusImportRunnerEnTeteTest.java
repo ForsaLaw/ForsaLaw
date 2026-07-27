@@ -2,6 +2,8 @@ package com.forsalaw.ragManagement.ingestion;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -90,5 +92,60 @@ class CorpusImportRunnerEnTeteTest {
 
         assertThat(enTete.code()).isEqualTo("coc");
         assertThat(enTete.corps()).startsWith("Article 1").contains("Article 2");
+    }
+
+    @Test
+    void champsDcaf_luesPourUnDocumentSansCode() {
+        // legislation-securite (DCAF) n'a pas de champ « code » : id/title/statut/posted
+        // doivent etre lus quand meme, pour permettre le repli sur id et le seed de
+        // legal_instrument (V12).
+        String fichier = """
+                ---
+                source: "legislation-securite"
+                tier: 1
+                id: "10004"
+                title: "Arrete du 13 juin 2012"
+                lang: "ar"
+                statut: ["انتهى به العمل"]
+                posted: "2021-07-14"
+                ---
+                Texte de l'arrete.
+                """;
+
+        var enTete = CorpusImportRunner.EnTete.lire(fichier);
+
+        assertThat(enTete.code()).isNull();
+        assertThat(enTete.id()).isEqualTo("10004");
+        assertThat(enTete.title()).isEqualTo("Arrete du 13 juin 2012");
+        assertThat(enTete.posted()).isEqualTo(LocalDate.of(2021, 7, 14));
+        assertThat(enTete.statut()).containsExactly("انتهى به العمل");
+    }
+
+    @Test
+    void statutAbsent_listeVide() {
+        String fichier = "---\ncode: \"coc\"\n---\nArticle 1\n";
+
+        assertThat(CorpusImportRunner.EnTete.lire(fichier).statut()).isEmpty();
+    }
+
+    @Test
+    void datePosteeMalformee_estIgnoreePlutotQueRejetee() {
+        String fichier = "---\nid: \"1\"\nposted: \"pas-une-date\"\n---\nTexte.\n";
+
+        assertThat(CorpusImportRunner.EnTete.lire(fichier).posted()).isNull();
+    }
+
+    @Test
+    void titreAvecCaracteresSpeciaux_luJusquauGuillemetFermant() {
+        String fichier = """
+                ---
+                id: "42"
+                title: "Decret n° 2020-123 du 5 mars 2020, relatif a..."
+                ---
+                Texte.
+                """;
+
+        assertThat(CorpusImportRunner.EnTete.lire(fichier).title())
+                .isEqualTo("Decret n° 2020-123 du 5 mars 2020, relatif a...");
     }
 }
