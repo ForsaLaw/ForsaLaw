@@ -28,7 +28,7 @@ revised — OCR is needed only for the older printed CEJJ bulletins, not for thi
 
 | Source | Status | Format | Language | Verdict |
 |---|---|---|---|---|
-| **jurisitetunisie.com** | ✅ Live (HTTPS) | HTML, one page per article group | French | **Primary source** |
+| **jurisitetunisie.com** | ✅ Live (HTTPS) | HTML, one page per article group | French; Arabic for 3 codes | **Primary source** |
 | **Official IORT code PDFs** (via `africa-laws.org` mirror) | ✅ Live | PDF, text layer | French | **Authoritative baseline** |
 | **FAOLEX** (`faolex.fao.org`) | ✅ Live | PDF, text layer | French | Supplementary (JORT extracts) |
 | `legislation.tn` | ⚠️ HTTP 503 at audit time | — | FR/AR | Re-check from Tunisia |
@@ -161,13 +161,33 @@ risk.
 
 ## Language coverage gap
 
-Everything reliably available for **Tier 1 is French** — Jurisite is French-only, as are the
-IORT code PDFs and the FAOLEX extracts. **Tier 2 is Arabic.** Since the Arabic text is the
-legally authoritative version and the French is a translation, a French-only statutory corpus
-retrieved against Arabic case law is a real limitation to design around, not a detail.
-BGE-M3 handles cross-lingual retrieval, so this is workable — but citations should make the
-source language explicit, and Arabic statutory text should be sourced later (IORT or
-`legislation.tn`, both currently blocked).
+Tier 1 is **overwhelmingly, but not exclusively, French**. The IORT code PDFs and the FAOLEX
+extracts are French. Jurisite is **not** French-only, as this document claimed until
+2026-07-27: it serves an Arabic edition alongside the French one for some codes, under a
+parallel filename (`const1005a.htm` Arabic / `const1005p.htm` French; `ccl1000a.htm` /
+`ccl1000f.htm`). Measured over the converted layer:
+
+| Code | AR pages | FR pages | AR characters | AR article headings |
+|---|---:|---:|---:|---:|
+| `ccl` (collectivites locales) | 59 | 59 | 185,516 | 397 |
+| `Constitution_2014` | 23 | 23 | 48,850 | 129 |
+| `Constitution_2022` | 14 | 15 | 38,181 | 137 |
+| **Total** | **96** | **97** | **272,547** | **663** |
+
+So **3 of 34 Jurisite codes** carry Arabic, mirroring their French counterparts page for page,
+for 272 K characters — 3.7 % of Jurisite's 7.4 M. The constitutions are covered in the
+authoritative language; everything else in Tier 1 is not. **Tier 2 is Arabic.** Since the
+Arabic text is the legally authoritative version and the French is a translation, a
+near-French-only statutory corpus retrieved against Arabic case law remains a real limitation
+to design around, not a detail. BGE-M3 handles cross-lingual retrieval, so this is workable —
+but citations should make the source language explicit, and Arabic statutory text should be
+sourced more widely later (IORT or `legislation.tn`, both currently blocked).
+
+**Do not infer the language from the source or the filename.** The `a` suffix covers all 96
+Arabic pages but also 45 French ones. `convert-corpus.py` measures it on the body instead
+(share of U+0600–U+06FF, threshold 5 %) and writes it to `lang` in the front matter; the two
+populations sit at **0–0.65 %** and **58.2–84.6 %**, so nothing lands near the threshold.
+Before that fix all 1,836 Jurisite pages were stamped `lang: "fr"`.
 
 ---
 
@@ -570,7 +590,9 @@ than `page`, since `?page=` is a disallowed pattern.
 availability notices, not law.
 
 **Arabic has more usable records than French (3,277 vs 2,901)** and is the authoritative
-version. This is currently the only structured Arabic statutory text in the corpus.
+version. It is by far the largest source of structured Arabic statutory text in the corpus —
+the only other one is the 96 Arabic Jurisite pages (272 K characters, three codes), see
+[Language coverage gap](#language-coverage-gap).
 
 Legal status (usable records only):
 
