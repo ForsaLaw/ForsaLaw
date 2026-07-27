@@ -331,6 +331,146 @@ outliers justify using the official texts as primary:
 
 ---
 
+## OCR des documents scannes — evaluation faite, decision en attente
+
+**Ce qu'il reste a OCRiser : 1 289 documents, 33 142 pages** (1 281 numeros du JORT
+1989–1996, 4 PDF africa-laws, 3 circulaires BCT, 1 arret).
+
+### Surya en local : qualite bonne, debit inutilisable
+
+Teste sur RTX 3050 6 Go (venv dedie `corpus-staging/.venv-ocr`, surya-ocr **0.16.7** —
+la 0.22 exige un backend vLLM sous Docker, indisponible ici ; transformers doit rester
+en **4.x**, la 5.x casse le chargement du modele).
+
+| Page | Duree | Lignes | VRAM crete |
+|---|---:|---:|---:|
+| 3 | 72,0 s | 71 | 4,45 Go |
+| 4 | 129,5 s | 64 | 4,89 Go |
+| 5 | 63,7 s | 64 | 4,89 Go |
+| 6 | 152,9 s | 76 | 5,08 Go |
+
+**~104 s/page en regime etabli.** Soit **39 jours** de calcul continu pour 32 747 pages.
+Un lot de 4 pages provoque un OOM immediat, et la VRAM crete derive de page en page :
+meme en sequentiel, un long traitement finirait par tomber. Le modele surya-2 (1,3 Go)
+vise des cartes de centre de donnees — la configuration par defaut de Surya porte
+d'ailleurs `VLLM_GPU_TYPE = '4090'`.
+
+Ce GPU reste parfaitement adapte aux **petits lots** : les 8 documents a forte valeur
+(75 pages) representent ~2 h.
+
+### Qualite mesuree sur JORT ar 1993/001 p.3 (verite terrain lue a l'oeil)
+
+**Chiffres : irreprochables.** `2213`, `2248`, `53/1967`, `98/1991`, `12 و37 و40` —
+aucune erreur numerique. C'est le mode de defaillance le plus couteux de ce corpus, et
+il est maitrise.
+
+**Erreurs de caracteres : reelles.** `المالية`→`الممالية`, `الوزير`→`الموزير`, et surtout
+**`الفصول`→`الغصول`** — le marqueur d'article lui-meme, ce qui ferait echouer la detection
+malgre des chiffres justes. `مکرر` sort avec un ک persan (U+06A9) au lieu de ك : a
+normaliser.
+
+**Entrelacement des colonnes : le vrai probleme.** Le JORT est sur deux colonnes et les
+lignes reviennent alternees entre elles. Chaque ligne est juste, mais le document est
+semantiquement melange — un chunk collerait deux decrets sans rapport. A traiter via le
+modele de mise en page (essai fait avec `sort_lines=False`), ou par un OCR infonuagique
+qui gere nativement l'ordre de lecture.
+
+### Options ouvertes
+
+| Voie | Cout | Delai | Remarque |
+|---|---|---|---|
+| Surya local, 8 documents (75 p.) | 0 | ~2 h | **A faire, sans regret** |
+| OCR infonuagique, 33 142 pages | ~50 $ | heures | Gere l'ordre de lecture ; exige une cle API |
+| Surya local, 33 142 pages | 0 | **39 j** | Ecarte |
+| Recuperer 1957–1988 (+117 000 p.) | — | — | **Deconseille** : impression la plus ancienne et la plus degradee, cout OCR double |
+
+---
+
+## Couche Markdown derivee (`md/`)
+
+Produite par `scripts/convert-corpus.py` depuis `raw/`. **Regenerable a volonte : ne jamais
+editer un fichier de `md/` a la main.** Un manifeste PAR SOURCE (`manifest-<source>.jsonl`),
+ecrit en mode `w` — deux conversions lancees en parallele sur un JSONL partage entrelacent
+leurs ecritures et le corrompent (constate, puis corrige).
+
+| Source | Fichiers | Caracteres | En-tetes d'article |
+|---|---:|---:|---:|
+| cassation | 5 336 | 49 044 399 | 2 169 |
+| legislation-securite | 5 528 | 36 352 794 | 57 492 |
+| africa-laws | 63 | 10 519 186 | 13 078 |
+| jurisite | 1 836 | 7 436 274 | 9 633 |
+| bct | 460 | 5 469 330 | 4 820 |
+| **Total** | **13 223** | **108 821 983** | **87 192** |
+
+JORT n'est pas encore converti (attend la fin du reliquat historique).
+
+Ecarts par rapport au brut, tous volontaires : 4 arrets en quarantaine, 1 824 fiches DCAF
+sans texte, 650 fiches DCAF de moins de 120 caracteres, 389 sommaires Jurisite, 11 PDF
+sans couche texte.
+
+Le faible nombre d'en-tetes cote cassation (2 169 pour 5 336 arrets) est ATTENDU : un arret
+n'est pas structure en articles, il en cite. Ces passages sortent avec une reference nulle —
+**la recherche doit traiter les chunks sans reference comme des citoyens de premiere
+classe**, car le raisonnement d'un arret est precisement ce qu'un avocat cherche.
+
+---
+
+## Deux defauts d'encodage a connaitre avant toute ingestion
+
+### 1. La falaise de numerisation du JORT
+
+Le JORT n'est pas lisible par machine avant le milieu des annees 1990, et **la date differe
+selon la langue**. Mesure sur les numeros effectivement collectes :
+
+| Annees | Francais | Arabe |
+|---|---|---|
+| 1989–1993 | ✗ scans | ✗ scans |
+| **1994–1996** | ✓ couche texte | ✗ scans |
+| **1997 →** | ✓ couche texte | ✓ couche texte |
+| 2000–2026 | ✓ ~100 % | ✓ ~100 % |
+
+Le francais devient exploitable en **1994**, l'arabe seulement en **1997**. Avant 1994,
+aucune des deux langues n'a de couche texte : chaque page est une image bitonale
+1968×2806 (~240 dpi), sans la moindre ressource de police.
+
+> **Ne pas se fier a l'annonce « 338 000 pages OCRisees » de jort.tn.** Cet OCR alimente
+> LEUR moteur de recherche ; il n'est pas embarque dans les PDF servis, et n'est expose ni
+> par une variante d'extension (`.txt`, `.json`, `.hocr` renvoient 404) ni par la page
+> `/view/`. L'API qui le porte est interdite par leur robots.txt.
+
+Etat : 1 281 numeros scannes en main (32 747 pages). Le reliquat 1957–1988
+(~4 569 numeros, ~117 000 pages) est integralement scanne et n'a pas ete collecte.
+
+### 2. Arabe en formes de presentation Unicode
+
+Certains PDF arabes possedent une couche texte mais encodent les lettres en **formes de
+presentation** (U+FB50–FDFF, U+FE70–FEFF) au lieu de l'arabe standard (U+0600–06FF).
+Consequence : le texte parait non-arabe a tout traitement naif — les en-tetes d'article
+disparaissent et la detection de langue se trompe.
+
+**Portee — verifiee, et heureusement etroite :**
+
+| Source | Fichiers arabes examines | Touches |
+|---|---:|---:|
+| africa-laws | 13 | **6** |
+| bct | 272 | 0 |
+| cassation | 1 500 | 0 |
+| legislation-securite | 2 | 0 |
+
+Les grands fonds arabes (5 340 arrets, 293 documents BCT) sont en Unicode standard.
+Seuls 6 PDF africa-laws sont concernes — mais ce sont des textes majeurs : mjalla des
+societes commerciales (ar), MRDC/CPCC (ar), loi de reorganisation penale de 2005, lois PI.
+
+**Correctif : normalisation NFKC**, gratuite et immediate. Sur la mjalla des societes,
+les en-tetes d'article detectes passent de **0 a 459**.
+
+**Limite du correctif :** ces memes fichiers stockent aussi les glyphes en ordre VISUEL,
+d'ou des mots aux lettres permutees apres normalisation (`صلالف ّلالأو` pour
+`الفصل الأول`). Pour ces 6 fichiers, rendre la page en image puis l'OCRiser donnera
+probablement un meilleur resultat que l'extraction de texte.
+
+---
+
 ## Sources found after the initial audit (not yet harvested)
 
 Both were missed on the first pass — `legislation-securite.tn` because it was probed as
