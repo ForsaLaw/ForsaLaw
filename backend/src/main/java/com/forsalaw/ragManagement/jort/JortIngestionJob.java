@@ -42,7 +42,15 @@ public class JortIngestionJob {
     @Value("${forsalaw.rag.jort.enabled:false}")
     private boolean active;
 
-    @Value("${forsalaw.rag.jort.base-url:https://www.iort.gov.tn}")
+    /**
+     * Miroir jort.tn et NON iort.gov.tn.
+     *
+     * <p>L'audit des sources (docs/CORPUS_MANIFEST.md) a etabli que {@code iort.gov.tn} est
+     * inexploitable par un client HTTP : application WinDev a session, sans HTTPS. La valeur
+     * par defaut precedente ne pouvait donc jamais aboutir — la tache aurait echoue a chaque
+     * execution une fois activee.</p>
+     */
+    @Value("${forsalaw.rag.jort.base-url:https://www.jort.tn}")
     private String urlBase;
 
     @Value("${forsalaw.rag.jort.index-path:/}")
@@ -114,12 +122,16 @@ public class JortIngestionJob {
                 return false;
             }
 
+            // Date de PUBLICATION, jamais la date d'ingestion. Le corpus couvre 1957-2026 :
+            // horodater a LocalDate.now() rendrait effective_date sans valeur, alors que c'est
+            // precisement la colonne sur laquelle repose la distinction ACTIVE / SUPERSEDED.
+            // Inconnue => null : une date absente est exploitable, une date fausse ne l'est pas.
             var demande = new LegalDocumentIngestionService.DemandeIngestion(
                     CODE_NAME_JORT,
                     numero.reference(),
                     LegalDocumentIngestionService.TIER_LEGISLATION,
                     null,
-                    LocalDate.now(),
+                    numero.publicationDate(),
                     numero.reference()
             );
             var resultat = ingestionService.ingererTexte(texte, demande);

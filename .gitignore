@@ -44,3 +44,11 @@ coverage/
 *.swp
 *.bak
 *.tmp
+
+# Corpus juridique collecte par scripts/harvest-corpus.py (~2 Go de PDF/HTML).
+# Le repertoire de transit se place NORMALEMENT hors du depot ; ces regles ne sont
+# qu'un garde-fou si quelqu'un le cree ici par megarde.
+corpus-staging/
+**/manifest.jsonl
+__pycache__/
+*.pyc

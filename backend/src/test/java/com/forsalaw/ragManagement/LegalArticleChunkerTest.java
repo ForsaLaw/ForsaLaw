@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forsalaw.ragManagement.ingestion.LegalArticleChunker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.InputStream;
@@ -75,6 +77,170 @@ class LegalArticleChunkerTest {
 
         assertThat(chunks).hasSize(1);
         assertThat(chunks.get(0).articleReference()).isEqualTo("264");
+    }
+
+    /**
+     * Chaque graphie ici a ete relevee dans le corpus reellement collecte. Une variante non
+     * reconnue ne provoque AUCUNE erreur : le chunker se rabat sur un decoupage par fenetres
+     * et tous les articles du code concerne perdent leur reference. C'est exactement ce qui
+     * s'est produit lors du diff des codes — le Code du travail, qui ecrit « Article. 10 »
+     * avec un point, ressortait a 17 articles au lieu de 446.
+     */
+    @ParameterizedTest(name = "[{index}] {0} -> article {1}")
+    @CsvSource(delimiter = '|', value = {
+            "Article 242            | 242",   // forme courante
+            "Article 13.-           | 13",    // PDF officiels de l'Imprimerie Officielle
+            "Art. 191. -            | 191",   // COC, 1 318 occurrences
+            "ART. 116. -            | 116",   // COC, 9 occurrences
+            "Art. 20 .              | 20",    // COC, espace avant le point
+            "Article. 10 :          | 10",    // Code du travail, POINT apres « Article »
+            "Article. 14 :     | 14",    // Code du travail + espace insecable
+            "Article 5         | 5",     // Code penal, espace insecable
+            "ARTICLE 7              | 7",
+            "Articles 9             | 9",
+            "Article premier        | 1",     // 585 occurrences dans le corpus
+            "Article 5 bis          | 5bis",  // article DISTINCT de l'article 5
+            "Art. 12 ter            | 12ter",
+            "الفصل 242              | 242",
+            "الفصــل 242            | 242",   // tatweel decoratif
+            "المادة 5               | 5",
+            "الفصل ٢٦٤              | 264",   // chiffres arabes-indiens
+    })
+    void toutesLesGraphiesRelevees_sontReconnues(String entete, String reference) {
+        List<LegalArticleChunker.Chunk> chunks =
+                chunker.decouper(entete + "\nCorps de la disposition juridique.");
+
+        assertThat(chunks)
+                .as("l'en-tete « %s » doit produire exactement un chunk", entete)
+                .hasSize(1);
+        assertThat(chunks.get(0).articleReference()).isEqualTo(reference);
+        assertThat(chunks.get(0).contenu()).contains("Corps de la disposition");
+    }
+
+    @Test
+    void articleBis_resteDistinctDeSonArticleDeBase() {
+        // Confondre 5 et 5 bis ferait citer une disposition pour une autre.
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper("""
+                Article 5
+                Disposition de base.
+
+                Article 5 bis
+                Disposition ajoutee par une loi ulterieure.
+                """);
+
+        assertThat(chunks).hasSize(2);
+        assertThat(chunks.get(0).articleReference()).isEqualTo("5");
+        assertThat(chunks.get(1).articleReference()).isEqualTo("5bis");
+        assertThat(chunks.get(1).contenu()).doesNotContain("Disposition de base");
+    }
+
+    /**
+     * Contre-epreuve indispensable : une reference au fil du texte n'est PAS un debut
+     * d'article. Sans l'ancrage en debut de ligne, « conformement a l'article 5 » couperait
+     * la disposition en deux et attribuerait la seconde moitie au mauvais article.
+     */
+    @Test
+    void referenceAuFilDuTexte_neDeclenchePasUnDecoupage() {
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper("""
+                Article 30
+                Le preneur est tenu, conformement a l'article 5 du present code, de
+                restituer la chose louee. Il en va de meme lorsque l'article 12 s'applique.
+                """);
+
+        assertThat(chunks).hasSize(1);
+        assertThat(chunks.get(0).articleReference()).isEqualTo("30");
+        assertThat(chunks.get(0).contenu()).contains("l'article 12 s'applique");
+    }
+
+    /**
+     * Verrou sur l'exigence que la conversion doit respecter : un en-tete colle a la fin de
+     * la phrase precedente n'est pas detecte. C'est la raison pour laquelle le convertisseur
+     * HTML/PDF -> Markdown doit imposer un saut de ligne avant chaque en-tete.
+     */
+    @Test
+    void enteteCollePar_uneConversionSansSautDeLigne_nEstPasDetecte() {
+        String malConverti = "Article 37 Nul ne peut etre puni. Article 38 L'infraction "
+                + "n'est pas punissable lorsque le prevenu n'a pas atteint l'age requis.";
+
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper(malConverti);
+
+        // Un seul chunk : le second en-tete est noye dans le corps du premier.
+        assertThat(chunks).hasSize(1);
+        assertThat(chunks.get(0).contenu()).contains("Article 38");
+    }
+
+    /**
+     * Le texte anterieur au premier article ne doit pas disparaitre.
+     *
+     * <p>Mesure sur le corpus converti avant correction : un arret de cassation perdait
+     * 83 % de son texte — en-tete, faits et procedure precedent la premiere occurrence de
+     * « الفصل N », et tout ce qui precedait le premier marqueur etait jete. Une page de code
+     * commencant par un decret de promulgation en perdait 33 %.</p>
+     */
+    /**
+     * Arabe encode en FORMES DE PRESENTATION Unicode : le defaut le plus sournois du corpus.
+     *
+     * <p>{@code ﺍﻟﻓﺼﻞ} est le mot « الفصل » ecrit avec les glyphes
+     * contextuels (U+FE70-FEFF) au lieu des lettres standard. Sans NFKC, ce sont deux
+     * chaines sans aucun codet commun : le chunker ne detecte AUCUN article et se rabat
+     * silencieusement sur un decoupage par fenetres. 40 % des numeros arabes du JORT et
+     * 6 codes arabes officiels etaient dans ce cas.</p>
+     */
+    @Test
+    void arabeEnFormesDePresentation_estNormaliseEtReconnu() {
+        String fasl = "ﺍﻟﻓﺼﻞ";      // الفصل en glyphes contextuels
+        assertThat(fasl).as("le test doit bien partir de codets differents").isNotEqualTo("الفصل");
+
+        List<LegalArticleChunker.Chunk> chunks =
+                chunker.decouper(fasl + " 242\nنص الفصل الاول.\n\n" + fasl + " 243\nنص ثان.");
+
+        assertThat(chunks).hasSize(2);
+        assertThat(chunks.get(0).articleReference()).isEqualTo("242");
+        assertThat(chunks.get(1).articleReference()).isEqualTo("243");
+        // Le contenu vectorise doit lui aussi etre normalise, sinon une requete en arabe
+        // standard n'apparierait jamais ce document.
+        assertThat(chunks.get(0).contenu()).contains("الفصل");
+    }
+
+    @Test
+    void texteAvantLePremierArticle_estConserveSansReference() {
+        String texte = """
+                Decret de promulgation du 15 decembre 1906.
+                Vu la deliberation du conseil, il est statue ce qui suit.
+
+                Article premier
+                Le present code entre en vigueur le 1er juin 1907.
+
+                Article 2
+                Sont abrogees toutes dispositions anterieures contraires.
+                """;
+
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper(texte);
+
+        assertThat(chunks).hasSize(3);
+        // Le preambule vient en tete, sans reference : ce n'est pas un article.
+        assertThat(chunks.get(0).articleReference()).isNull();
+        assertThat(chunks.get(0).contenu()).contains("Decret de promulgation");
+        assertThat(chunks.get(1).articleReference()).isEqualTo("1");
+        assertThat(chunks.get(2).articleReference()).isEqualTo("2");
+    }
+
+    @Test
+    void arretCitantUnArticle_neJetteNiLesFaitsNiLaProcedure() {
+        // Un arret n'est pas structure en articles : il en cite. Tout ce qui precede la
+        // citation est le coeur de la decision et doit rester indexable.
+        String arret = "Cour de cassation, arret n° 35455 du 14 mars 2022.\n"
+                + "Attendu que le demandeur soutient que la societe a ete dissoute. ".repeat(8)
+                + "\nالفصل 278\nيقتضي هذا الفصل ما يلي.";
+
+        List<LegalArticleChunker.Chunk> chunks = chunker.decouper(arret);
+
+        String tout = chunks.stream().map(LegalArticleChunker.Chunk::contenu)
+                .reduce("", (a, b) -> a + b);
+        assertThat(tout).contains("Cour de cassation");
+        assertThat(tout).contains("le demandeur soutient");
+        // Le passage de tete ne doit surtout pas etre etiquete « article 278 ».
+        assertThat(chunks.get(0).articleReference()).isNull();
     }
 
     @Test

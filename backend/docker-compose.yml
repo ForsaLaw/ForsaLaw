@@ -88,8 +88,13 @@ services:
   # corpus) ne doivent pas sortir de l'infrastructure pour etre vectorisees.
   # Sur machine sans GPU, la vectorisation fonctionne mais reste lente : c'est acceptable
   # pour du developpement, pas pour ingerer un corpus complet.
+  # Version 1.7 et non 1.5 : le telechargeur de la 1.5 echoue sur bge-m3 avec
+  # « Could not download model artifacts / relative URL without a base ». Verifie :
+  # depuis le meme conteneur, huggingface.co sert bien le fichier concerne (HTTP 200,
+  # une redirection), aucune variable de proxy n'est injectee, et la 1.7 franchit le
+  # meme point sans erreur. Le defaut vient du client HF embarque dans la 1.5.
   embeddings:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.7
     container_name: forsalaw-embeddings
     restart: unless-stopped
     command: --model-id BAAI/bge-m3 --port 80
