@@ -34,6 +34,13 @@
 #
 #   5. LES DOCUMENTS MIS EN QUARANTAINE NE SONT PAS CONVERTIS.
 #
+#   6. LA LANGUE SE MESURE SUR LE CORPS, ELLE NE SE DEDUIT PAS DE LA SOURCE.
+#      Jurisite sert une edition arabe A COTE de l'edition francaise sur 3 de ses 34 codes
+#      (ccl, Constitution_2014, Constitution_2022) ; le `lang: "fr"` code en dur donnait
+#      96 fichiers arabes sur 1 836 declares francais.
+#      Le nom de fichier ne suffit pas non plus : le suffixe « a » couvre les 96 pages
+#      arabes mais aussi 45 pages francaises. Seul le corps tranche.
+#
 # DEPENDANCE : pypdf
 
 import argparse
@@ -58,6 +65,12 @@ ARTICLE = re.compile(
 
 # Arrets dont l'integrite est douteuse — voir docs/CORPUS_MANIFEST.md.
 QUARANTAINE_CASSATION = {"6187.13", "59045.18", "31643.18", "34721.22"}
+
+# Bloc arabe de base, U+0600–U+06FF. nettoyer() applique NFKC en amont, donc les formes de
+# presentation (U+FB50–FDFF, U+FE70–FEFF) sont deja repliees sur cette plage au moment du
+# comptage — compter sans normaliser raterait les corps en formes contextuelles.
+ARABE_MIN, ARABE_MAX = 0x0600, 0x06FF
+SEUIL_ARABE = 0.05
 
 
 def now():
@@ -124,6 +137,27 @@ def nettoyer(texte):
     t = re.sub(r"[ \t]+", " ", t)
     t = re.sub(r" *\n *", "\n", t)
     return re.sub(r"\n{3,}", "\n\n", t).strip()
+
+
+def langue(corps):
+    """Langue MESUREE sur le corps (regle 6) : « ar » ou « fr ».
+
+    Part des caracteres du bloc arabe de base rapportee a la longueur du corps. Aucune
+    ambiguite a arbitrer sur ce corpus : mesure du 27/07/2026 sur les 1 836 pages Jurisite,
+    les pages francaises tiennent dans 0–0,65 % (maximum `cp/cp1200.md`, une citation) et les
+    arabes dans 58,2–84,6 % (minimum `ccl/ccl1305a.md`, dense en chiffres et en renvois).
+    Deux paquets, rien entre les deux ; le seuil a 5 % se pose dans le vide.
+
+    Ne PAS remplacer par une regle sur le nom de fichier : le suffixe « a » de Jurisite
+    couvre les 96 pages arabes mais aussi 45 pages francaises.
+
+    Volontairement binaire — les seules langues du corpus sont l'arabe et le francais. Une
+    troisieme langue exigerait un vrai detecteur, pas un elargissement de ce compte.
+    """
+    if not corps:
+        return "fr"
+    n = sum(1 for c in corps if ARABE_MIN <= ord(c) <= ARABE_MAX)
+    return "ar" if n / len(corps) >= SEUIL_ARABE else "fr"
 
 
 def html_vers_texte(fragment):
@@ -235,13 +269,15 @@ def conv_jurisite(raw, out, sortie, limite):
             continue
         cible = os.path.join(out, "jurisite", r["code"],
                              os.path.splitext(r["page"])[0] + ".md")
+        lang = langue(corps)                            # regle 6
         ecrire_md(cible, {
             "source": "jurisite", "tier": 1, "code": r["code"], "page": r["page"],
-            "lang": "fr", "url": r["url"], "consolidation": "non officielle",
+            "lang": lang, "url": r["url"], "consolidation": "non officielle",
             "converted_at": now(),
         }, corps)
         sortie.ajouter({"md": os.path.relpath(cible, out).replace("\\", "/"),
                         "source": "jurisite", "id": f"{r['code']}/{r['page']}",
+                        "lang": lang,
                         "chars": len(corps), "articles": len(ARTICLE.findall(corps))})
 
 
