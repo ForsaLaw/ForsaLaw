@@ -101,6 +101,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/documents/**").authenticated()
                         .requestMatchers("/api/admin/affaires/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/whatsapp/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/rag/**").hasRole("ADMIN")
                         .requestMatchers("/api/messenger/avocat/**").hasRole("AVOCAT")
                         .requestMatchers("/api/messenger/**").hasRole("CLIENT")
                         .requestMatchers("/api/audit-logs/**").authenticated()
