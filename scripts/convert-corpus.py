@@ -41,6 +41,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 
 try:
@@ -103,7 +104,22 @@ def nettoyer(texte):
 
     Les sauts de ligne portent le contrat avec le chunker : on ne les compacte jamais
     au point de recoller deux blocs.
+
+    NFKC est INDISPENSABLE : certains PDF arabes encodent les lettres en formes de
+    presentation Unicode (U+FB50–FDFF, U+FE70–FEFF) au lieu de l'arabe standard
+    (U+0600–06FF). Sans normalisation, « الفصل » ne ressemble a rien de reconnaissable et
+    tous les en-tetes du document disparaissent. Mesure sur les 6 fichiers concernes :
+    1 474 en-tetes d'article recuperes, dont la mjalla des societes commerciales (0 -> 459)
+    et la MRDC/CPCC arabe (0 -> 461). Cote JORT, 40 % des numeros arabes sont concernes.
+
+    NFKC ne touche PAS au kaf persan U+06A9 parfois produit par l'OCR a la place du kaf
+    arabe U+0643 : deux lettres distinctes, pas des variantes de glyphe.
+
+    Le filet de securite reel est cote backend — LegalArticleChunker.normaliser() applique
+    aussi NFKC, ce qui couvre les sources futures et le texte OCRise. La normalisation ici
+    sert a garder `md/` propre, pas a proteger le pipeline.
     """
+    texte = unicodedata.normalize("NFKC", texte)
     t = texte.replace("\xa0", " ").replace("\r\n", "\n").replace("\r", "\n")
     t = re.sub(r"[ \t]+", " ", t)
     t = re.sub(r" *\n *", "\n", t)
@@ -142,11 +158,17 @@ def lire_manifeste(raw, source):
 
 
 class Sortie:
-    """Manifeste de conversion + compteurs."""
+    """Manifeste de conversion + compteurs.
 
-    def __init__(self, out):
+    UN MANIFESTE PAR SOURCE, jamais un fichier partage : deux conversions lancees en
+    parallele sur un meme JSONL entrelacent leurs ecritures et le corrompent (constate).
+    Le mode « w » plutot que « a » rend en outre chaque passe idempotente — relancer une
+    conversion ne duplique plus les lignes.
+    """
+
+    def __init__(self, out, source):
         os.makedirs(out, exist_ok=True)
-        self.fh = open(os.path.join(out, "manifest.jsonl"), "a", encoding="utf-8")
+        self.fh = open(os.path.join(out, f"manifest-{source}.jsonl"), "w", encoding="utf-8")
         self.n = 0
         self.ignores = {}
 
@@ -335,11 +357,10 @@ def main():
 
     cibles = list(SOURCES) if args.source == "all" else [args.source]
     for nom in cibles:
-        sortie = Sortie(args.out)
-        debut = sortie.n
+        sortie = Sortie(args.out, nom)
         print(f"\n=== {nom} ===", flush=True)
         SOURCES[nom](args.raw, args.out, sortie, args.limit)
-        print(f"  {sortie.n - debut} fichier(s) Markdown ecrit(s)")
+        print(f"  {sortie.n} fichier(s) Markdown ecrit(s)")
         if sortie.ignores:
             for motif, n in sorted(sortie.ignores.items(), key=lambda x: -x[1]):
                 print(f"  ignore — {motif}: {n}")

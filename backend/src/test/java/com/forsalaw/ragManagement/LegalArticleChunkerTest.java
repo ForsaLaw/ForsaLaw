@@ -177,6 +177,31 @@ class LegalArticleChunkerTest {
      * « الفصل N », et tout ce qui precedait le premier marqueur etait jete. Une page de code
      * commencant par un decret de promulgation en perdait 33 %.</p>
      */
+    /**
+     * Arabe encode en FORMES DE PRESENTATION Unicode : le defaut le plus sournois du corpus.
+     *
+     * <p>{@code ﺍﻟﻓﺼﻞ} est le mot « الفصل » ecrit avec les glyphes
+     * contextuels (U+FE70-FEFF) au lieu des lettres standard. Sans NFKC, ce sont deux
+     * chaines sans aucun codet commun : le chunker ne detecte AUCUN article et se rabat
+     * silencieusement sur un decoupage par fenetres. 40 % des numeros arabes du JORT et
+     * 6 codes arabes officiels etaient dans ce cas.</p>
+     */
+    @Test
+    void arabeEnFormesDePresentation_estNormaliseEtReconnu() {
+        String fasl = "ﺍﻟﻓﺼﻞ";      // الفصل en glyphes contextuels
+        assertThat(fasl).as("le test doit bien partir de codets differents").isNotEqualTo("الفصل");
+
+        List<LegalArticleChunker.Chunk> chunks =
+                chunker.decouper(fasl + " 242\nنص الفصل الاول.\n\n" + fasl + " 243\nنص ثان.");
+
+        assertThat(chunks).hasSize(2);
+        assertThat(chunks.get(0).articleReference()).isEqualTo("242");
+        assertThat(chunks.get(1).articleReference()).isEqualTo("243");
+        // Le contenu vectorise doit lui aussi etre normalise, sinon une requete en arabe
+        // standard n'apparierait jamais ce document.
+        assertThat(chunks.get(0).contenu()).contains("الفصل");
+    }
+
     @Test
     void texteAvantLePremierArticle_estConserveSansReference() {
         String texte = """

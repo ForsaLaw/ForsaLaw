@@ -173,9 +173,27 @@ public class LegalArticleChunker {
     /**
      * Les extractions PDF laissent des espaces insecables et des retours a la ligne au milieu
      * des phrases ; sans normalisation, la regex d'article rate des debuts de ligne.
+     *
+     * <p><b>NFKC vient en premier, et c'est indispensable.</b> Une partie du corpus encode
+     * l'arabe en FORMES DE PRESENTATION Unicode (U+FB50-FDFF, U+FE70-FEFF) — les glyphes
+     * contextuels — au lieu des lettres standard (U+0600-06FF). Le mot « article » s'ecrit
+     * alors avec des codets totalement differents : la regex ne reconnait rien et TOUS les
+     * articles du document disparaissent, sans erreur ni journal. Mesure sur le corpus
+     * collecte : 40 % des numeros arabes du JORT sont concernes, et 6 codes arabes de
+     * l'Imprimerie Officielle (mjalla des societes, MRDC) ressortaient a zero article.</p>
+     *
+     * <p>Normaliser ICI plutot qu'a la conversion protege aussi les sources futures et le
+     * texte issu d'un OCR. Et puisque {@link #decouper(String)} decoupe le texte NORMALISE,
+     * les chunks vectorises portent la meme forme que les requetes : sans cela, une question
+     * en arabe standard n'apparierait jamais un document en formes de presentation.</p>
+     *
+     * <p>NFKC ne corrige EN REVANCHE pas le kaf persan U+06A9 parfois rendu par l'OCR a la
+     * place du kaf arabe U+0643 : ce sont deux lettres distinctes, pas des variantes de
+     * glyphe. Sans effet sur les references d'article, qui ne capturent que des chiffres.</p>
      */
     private String normaliser(String texte) {
-        return texte.replace(' ', ' ')
+        return java.text.Normalizer.normalize(texte, java.text.Normalizer.Form.NFKC)
+                .replace(' ', ' ')
                 .replaceAll("\r\n?", "\n")
                 .replaceAll("[ \t]+", " ")
                 .replaceAll("\n{3,}", "\n\n");
