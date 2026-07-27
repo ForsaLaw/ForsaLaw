@@ -25,13 +25,42 @@ import java.util.regex.Pattern;
 public class LegalArticleChunker {
 
     /**
-     * Debut d'article, en arabe ou en francais, en debut de ligne.
-     * L'arabe utilise « الفصل » (code) ou « الفصل » suivi du numero ; le francais « Article »
-     * ou l'abreviation « Art. ». Les chiffres peuvent etre arabes-indiens (٠-٩).
+     * Debut d'article, en arabe ou en francais, EN DEBUT DE LIGNE.
+     *
+     * <p>Les graphies varient d'un code a l'autre, et chaque variante non couverte fait
+     * disparaitre SILENCIEUSEMENT tous les articles du code concerne : faute de marqueur,
+     * {@link #decouper(String)} se rabat sur un decoupage par fenetres et les references
+     * d'article sont perdues. Formes relevees dans le corpus reel :</p>
+     * <ul>
+     *   <li>{@code Article 242} — forme courante ;</li>
+     *   <li>{@code Article 13.-} — PDF officiels de l'Imprimerie Officielle ;</li>
+     *   <li>{@code Art. 191. -} — Code des obligations et des contrats (1 318 fois) ;</li>
+     *   <li>{@code ART. 116. -} — meme code, 9 fois ;</li>
+     *   <li>{@code Article. 10 :} — Code du travail, POINT APRES « Article » (446 articles) ;</li>
+     *   <li>{@code Article premier} — 585 fois dans le corpus ;</li>
+     *   <li>{@code الفصل 242}, {@code الفصــل 242} (tatweel), {@code المادة 5} ;</li>
+     *   <li>chiffres arabes-indiens {@code ٠-٩} des deux cotes.</li>
+     * </ul>
+     *
+     * <p>L'ancrage en debut de ligne est VOLONTAIRE : sans lui, « conformement a l'article 5 »
+     * en plein corps de texte serait pris pour un debut d'article et fragmenterait la
+     * disposition. En contrepartie, la conversion HTML/PDF -> texte DOIT placer chaque
+     * en-tete en debut de ligne. Voir docs/CORPUS_MANIFEST.md.</p>
+     *
+     * <p>La casse n'est volontairement PAS ignoree : « article 5 » tout en minuscules est,
+     * dans ce corpus, une reference au fil du texte, pas un en-tete.</p>
      */
     private static final Pattern DEBUT_ARTICLE = Pattern.compile(
-            "(?m)^\\s*(?:(?:الفصل|الفصــل|المادة)\\s*([0-9\\u0660-\\u0669]+)"
-                    + "|(?:Article|ARTICLE|Art\\.)\\s*([0-9]+(?:\\s*(?:bis|ter|quater))?))",
+            "(?m)^\\s*(?:"
+                    // Arabe : tatweel (ـ) tolere entre les lettres, separateur optionnel.
+                    + "(?:الفـ*صـ*ل|المـ*ادة)\\s*[:.\\-]?\\s*([0-9\\u0660-\\u0669]+)"
+                    // Francais : Article / Articles / Art / ART, point facultatif apres le
+                    // mot ET apres le numero, « premier » accepte comme numero.
+                    + "|(?:Articles?|ARTICLES?|Arts?|ARTS?)\\.?\\s*[:.\\-]?\\s*"
+                    // Le suffixe reste DANS le groupe capturant : l'article 5 bis est un
+                    // article distinct de l'article 5, les confondre fausse toute citation.
+                    + "(premier|[0-9\\u0660-\\u0669]+(?:\\s*(?:bis|ter|quater|quinquies|sexies))?)"
+                    + ")",
             Pattern.UNICODE_CASE);
 
     @Value("${forsalaw.rag.chunking.max-chars:4000}")
@@ -105,10 +134,21 @@ public class LegalArticleChunker {
         return chunks;
     }
 
-    /** Chiffres arabes-indiens (٠-٩) ramenes aux chiffres latins pour une reference comparable. */
+    /**
+     * Reference comparable : chiffres arabes-indiens (٠-٩) ramenes en chiffres latins,
+     * espaces retires, et « premier » ramene a « 1 ».
+     *
+     * <p>Sans cette normalisation, « ٢٦٤ » et « 264 » designeraient deux articles distincts,
+     * et « Article premier » — 585 occurrences dans le corpus — ne se resoudrait jamais
+     * lorsqu'un utilisateur demande l'article 1.</p>
+     */
     private String normaliserReference(String numero) {
-        StringBuilder sb = new StringBuilder(numero.length());
-        for (char c : numero.trim().toCharArray()) {
+        String brut = numero.trim();
+        if (brut.regionMatches(true, 0, "premier", 0, 7)) {
+            return "1";
+        }
+        StringBuilder sb = new StringBuilder(brut.length());
+        for (char c : brut.toCharArray()) {
             if (c >= '٠' && c <= '٩') {
                 sb.append((char) ('0' + (c - '٠')));
             } else if (!Character.isWhitespace(c)) {
