@@ -1,8 +1,10 @@
 package com.forsalaw.ragManagement.search;
 
 import com.forsalaw.ragManagement.embedding.EmbeddingClient;
+import com.forsalaw.ragManagement.hyde.HydeQueryRewriter;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -17,12 +19,22 @@ import java.util.List;
  * constitutionnelle faisait remonter l'article de la Constitution de 2014 en premier resultat,
  * sans aucune indication qu'elle avait ete integralement remplacee en 2022 — d'ou le filtrage
  * par date porte par {@link LegalDocumentChunkRepository#rechercherParSimilarite}.</p>
+ *
+ * <p><b>Reformulation HyDE avant vectorisation.</b> Mesure sur le corpus reel (95 465 chunks
+ * de niveau 1) : une question embeddee brute manque son article de reponse dans 6 cas sur 10.
+ * {@link HydeQueryRewriter} tente de generer une hypothese de redaction statutaire, EMBEDDEE A
+ * LA PLACE de la question quand elle est disponible. Aucune tentative n'est OBLIGATOIRE : en
+ * cas d'echec, de timeout, ou de sortie invalide, {@code reformuler} renvoie
+ * {@link java.util.Optional#empty()} et la question brute est embeddee comme avant — une
+ * recherche ne doit jamais echouer parce que la reformulation a echoue.</p>
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LegalChunkSearchService {
 
     private final EmbeddingClient embeddingClient;
+    private final HydeQueryRewriter hydeQueryRewriter;
     private final LegalDocumentChunkRepository chunkRepository;
 
     /**
@@ -35,7 +47,12 @@ public class LegalChunkSearchService {
 
         validerParametres(requete, tier, tenantId, limite);
 
-        float[] vecteur = embeddingClient.embedOne(requete);
+        String texteAEmbedder = hydeQueryRewriter.reformuler(requete, tier).orElseGet(() -> {
+            log.debug("HyDE indisponible ou rejetee : embedding de la question brute.");
+            return requete;
+        });
+
+        float[] vecteur = embeddingClient.embedOne(texteAEmbedder);
         return chunkRepository.rechercherParSimilarite(vecteur, tier, tenantId, asOf, limite);
     }
 

@@ -123,6 +123,42 @@ services:
       # Le premier demarrage telecharge le modele : compter plusieurs minutes.
       start_period: 600s
 
+  # Reformulation HyDE avant vectorisation (voir HydeQueryRewriter) : auto-heberge pour la
+  # meme raison que TEI ci-dessus -- une question de recherche peut porter sur un fait
+  # confidentiel au meme titre qu'un document. Image CPU-compatible par defaut, comme TEI :
+  # fonctionne sans GPU (plus lent), le GPU a ete valide manuellement (docker run --gpus all)
+  # plutot que fige ici, pour ne pas faire echouer `docker compose up` sur une machine sans
+  # pilote nvidia (meme choix que le service embeddings ci-dessus).
+  #
+  # Ollama ne livre aucun modele par defaut : l'entrypoint demarre le serveur, attend qu'il
+  # reponde, puis tire le modele configure -- sans quoi le premier appel de recherche
+  # echouerait avec "model not found" plutot que d'etre absent proprement.
+  hyde:
+    image: ollama/ollama:latest
+    container_name: forsalaw-hyde
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until curl -sf http://localhost:11434/ >/dev/null 2>&1; do sleep 1; done
+        ollama pull "${HYDE_MODEL:-qwen2.5:3b-instruct}"
+        wait
+    environment:
+      HYDE_MODEL: ${HYDE_MODEL:-qwen2.5:3b-instruct}
+    ports:
+      - "11434:11434"
+    volumes:
+      # Le modele (~2 Go en 3B) : sans ce volume il serait retelecharge a chaque demarrage.
+      - forsalaw_hyde_cache:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Le premier demarrage tire le modele : compter plusieurs minutes.
+      start_period: 300s
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: forsalaw-pgadmin
@@ -141,3 +177,4 @@ volumes:
   forsalaw_miniodata:
   forsalaw_rabbitmqdata:
   forsalaw_embeddings_cache:
+  forsalaw_hyde_cache:
