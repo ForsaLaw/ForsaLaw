@@ -113,6 +113,36 @@ services:
       retries: 10
       start_period: 600s
 
+  # Reformulation HyDE avant vectorisation (HydeQueryRewriter) : auto-heberge, meme raison
+  # que embeddings ci-dessus. Volontairement ABSENT du depends_on de backend ci-dessous :
+  # contrairement a embeddings (sans lequel rien ne peut etre vectorise), une recherche
+  # degrade PROPREMENT sans hyde (repli sur la question brute, voir HydeQueryRewriter) --
+  # bloquer le demarrage de toute l'application sur le premier telechargement du modele
+  # (plusieurs minutes) serait la MEME classe d'incident que l'OOM d'embeddings avait cause,
+  # pour une fonctionnalite explicitement concue pour degrader gracieusement.
+  hyde:
+    image: ${HYDE_IMAGE:-ollama/ollama:latest}
+    container_name: forsalaw-hyde
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until curl -sf http://localhost:11434/ >/dev/null 2>&1; do sleep 1; done
+        ollama pull "${HYDE_MODEL:-qwen2.5:3b-instruct}"
+        wait
+    environment:
+      HYDE_MODEL: ${HYDE_MODEL:-qwen2.5:3b-instruct}
+    volumes:
+      - forsalaw_hyde_cache:/root/.ollama
+    networks: [forsalaw-net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+
   backend:
     build:
       context: ./backend
@@ -153,6 +183,15 @@ services:
       EMBEDDING_BASE_URL: http://embeddings:80
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
       EMBEDDING_DIMENSIONS: "1024"
+
+      # ─── Reformulation HyDE avant vectorisation ─────────────────────────
+      # HYDE_ENABLED=false bascule sur NoOpHydeQueryRewriter (question brute systematique) :
+      # utile si le service hyde n'est pas deploye, sans jamais faire echouer une recherche.
+      HYDE_ENABLED: ${HYDE_ENABLED:-true}
+      HYDE_BASE_URL: http://hyde:11434
+      HYDE_MODEL: ${HYDE_MODEL:-qwen2.5:3b-instruct}
+      HYDE_TIMEOUT_SECONDS: ${HYDE_TIMEOUT_SECONDS:-8}
+
       # Collecte JORT : n'activer que sur UNE instance, jamais par defaut.
       JORT_ENABLED: ${JORT_ENABLED:-false}
 
@@ -225,5 +264,6 @@ networks:
 volumes:
   forsalaw_pgdata:
   forsalaw_embeddings_cache:
+  forsalaw_hyde_cache:
   forsalaw_miniodata:
   forsalaw_rabbitmqdata:
