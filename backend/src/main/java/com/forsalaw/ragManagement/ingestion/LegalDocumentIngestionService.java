@@ -109,7 +109,13 @@ public class LegalDocumentIngestionService {
         return new ResultatIngestion(demande.sourceReference(), inseres, propositions);
     }
 
-    private void validerDemande(DemandeIngestion demande) {
+    /**
+     * Visibilite de paquetage (et non privee) : {@code AdminRagIngestionService} l'appelle
+     * explicitement AVANT d'archiver le PDF dans le stockage objet, pour rejeter un couple
+     * tier/tenantId invalide sans effet de bord ecrit. L'appeler ici aussi reste necessaire
+     * pour {@link #ingererTexte}, qui n'a pas cette etape d'archivage en amont.
+     */
+    void validerDemande(DemandeIngestion demande) {
         if (demande.codeName() == null || demande.codeName().isBlank()) {
             throw new IllegalArgumentException("codeName est obligatoire.");
         }

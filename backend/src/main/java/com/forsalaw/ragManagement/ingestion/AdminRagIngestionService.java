@@ -67,6 +67,14 @@ public class AdminRagIngestionService {
                 ? "upload:sha256:" + sha256(octets)
                 : sourceReferenceFourni.trim();
 
+        var demande = new LegalDocumentIngestionService.DemandeIngestion(
+                codeName, sourceReference, tier, tenantId, effectiveDate, articleTitle);
+
+        // Valide le couple tier/tenantId ICI, AVANT tout effet de bord : appele sinon seulement
+        // a l'interieur de ingererPdf plus bas, ce qui archiverait deja le PDF dans le stockage
+        // objet avant qu'une demande invalide (ex. niveau 3 sans tenantId) ne soit rejetee.
+        ingestionService.validerDemande(demande);
+
         // Court-circuite AVANT l'archivage S3 et l'ingestion : un doublon ne doit ni
         // reoccuper de stockage objet, ni revectoriser un contenu deja indexe.
         if (chunkRepository.compterParSource(sourceReference) > 0) {
@@ -79,8 +87,6 @@ public class AdminRagIngestionService {
         String cleS3 = S3StorageService.RAG_SOURCES_PREFIX + cleSure(sourceReference) + ".pdf";
         s3StorageService.upload(cleS3, new ByteArrayInputStream(octets), octets.length, "application/pdf");
 
-        var demande = new LegalDocumentIngestionService.DemandeIngestion(
-                codeName, sourceReference, tier, tenantId, effectiveDate, articleTitle);
         var resultat = ingestionService.ingererPdf(new ByteArrayInputStream(octets), demande);
 
         log.warn("Ingestion admin : « {} » (niveau {}) deposee par {} -- {} chunk(s), "
