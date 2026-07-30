@@ -33,6 +33,13 @@ public class S3StorageService {
     /** Prefixe des objets du coffre-fort numerique. */
     public static final String DOCUMENTS_PREFIX = "documents/";
 
+    /**
+     * Prefixe des PDF sources archives lors d'une ingestion RAG (admin ou lot). Une plateforme
+     * de preuve juridique doit pouvoir remonter au document original, pas seulement aux chunks
+     * extraits qui en derivent.
+     */
+    public static final String RAG_SOURCES_PREFIX = "rag-sources/";
+
     private final S3Client s3Client;
 
     @Value("${forsalaw.storage.s3.bucket}")

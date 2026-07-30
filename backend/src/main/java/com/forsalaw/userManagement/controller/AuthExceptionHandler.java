@@ -1,5 +1,6 @@
 package com.forsalaw.userManagement.controller;
 
+import com.forsalaw.ragManagement.ingestion.ScannedPdfException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -16,6 +17,16 @@ public class AuthExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleAuthError(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+    }
+
+    /**
+     * Un PDF sans couche texte (scan) est une erreur de SAISIE, pas une panne serveur : sans ce
+     * handler, elle remonterait en 500 alors que le client doit simplement fournir un autre
+     * fichier (ou attendre une chaine OCR, prevue comme etape distincte).
+     */
+    @ExceptionHandler(ScannedPdfException.class)
+    public ResponseEntity<Map<String, String>> handleScannedPdf(ScannedPdfException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
     }
 
