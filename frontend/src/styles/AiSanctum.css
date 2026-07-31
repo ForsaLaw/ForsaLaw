@@ -115,6 +115,18 @@
   cursor: pointer; /* Click to skip typing animation */
 }
 
+/* Assistant momentanement indisponible (echec reseau, flux interrompu) : meme structure que
+   la boite de dialogue normale, accent rouge au lieu de dore pour signaler l'anomalie. */
+.dialogue-box-erreur {
+  box-shadow: 8px 8px 0 #c0392b;
+  cursor: default;
+}
+
+.dialogue-box-erreur .dialogue-name-tab {
+  background: #c0392b;
+  box-shadow: 4px -4px 0 var(--black);
+}
+
 .dialogue-name-tab {
   position: absolute;
   top: -38px;

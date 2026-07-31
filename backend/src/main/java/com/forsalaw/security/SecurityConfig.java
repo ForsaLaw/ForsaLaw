@@ -20,6 +20,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -60,6 +61,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        // Sans ceci, CsrfConfigurer ajoute INCONDITIONNELLEMENT sa propre
+                        // CsrfAuthenticationStrategy au SessionManagementConfigurer (verifie par
+                        // decompilation : CsrfConfigurer.configure() appelle toujours
+                        // sessionManagementConfigurer.addSessionAuthenticationStrategy(...), qui
+                        // ADDITIONNE plutot que remplacer). Definir sessionAuthenticationStrategy
+                        // sur .sessionManagement() seul ne suffit donc pas : il faut neutraliser
+                        // la strategie CSRF elle-meme, ici, sur le configurer CSRF.
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
                         .ignoringRequestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/register",
@@ -78,8 +87,13 @@ public class SecurityConfig {
                 // STATELESS : aucune session serveur. Possible car la requete d'autorisation OAuth2
                 // est desormais conservee dans un cookie (HttpCookieOAuth2AuthorizationRequestRepository)
                 // et non plus en session — sinon le callback Google echouerait en authorization_request_not_found.
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                //
+                // sessionAuthenticationStrategy=Null ici aussi : couvre toute autre strategie de
+                // fixation de session par defaut (en plus de celle de CSRF, neutralisee ci-dessus).
+                // Sans session a fixer, ces strategies n'ont aucune utilite dans une API stateless.
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
@@ -99,6 +113,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/documents/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/documents/public/verify").permitAll()
                         .requestMatchers("/api/documents/**").authenticated()
+                        .requestMatchers("/api/ai/**").authenticated()
                         .requestMatchers("/api/admin/affaires/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/whatsapp/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/rag/**").hasRole("ADMIN")
