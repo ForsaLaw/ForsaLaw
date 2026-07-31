@@ -28,7 +28,7 @@ Automated checks are foundational. Put this in place before touching complex log
 - [ ] **`OffsetDateTime` Refactor:** Migrate from `LocalDateTime`. **CRITICAL:** DB migration needs `AT TIME ZONE 'Africa/Tunis'`. The frontend wire format will change, so the React components and `AuthExceptionHandler` must be updated to handle the new ISO-8601 offset strings.
 - [ ] **ShedLock Integration:** Prevent duplicate email reminders. Requires a dedicated Flyway migration to create the `shedlock` table.
 - [ ] **OAuth2 & JWT Security Fix:** Move the JWT out of `localStorage` (XSS risk) and into an `httpOnly` cookie. Implement `CookieBasedAuthorizationRequestRepository` to keep Google Login working under `STATELESS` sessions. **CRITICAL:** Re-enable CSRF protection (since `.csrf.disable()` is only safe when using Authorization headers). Add `SameSite=Strict/Lax` and a CSRF token for state-changing requests.
-- [ ] **Flyway Finalization:** Move ALL 3 runtime DDL patchers to Flyway: `V3` (CHECK constraints), `V4` (message backfills), and `V5` (`ForsaLawApplication.databaseFix`).
+- [x] **Flyway Finalization:** The 3 runtime DDL patchers are gone, each replaced by a migration (numbered V5/V6/V7, not V3/V4/V5 as originally planned): `DocumentMetadataContexteCheckPatcher` → `V5__document_metadata_contexte_check`, `MessengerMessageReceiptBackfill` → `V6__messenger_receipt_backfill`, `ForsaLawApplication.databaseFix` → `V7__drop_document_access_log_action_check`. No Java code executes DDL at startup any more.
 - [ ] **Admin Bootstrap:** Add a seed migration (or one-shot CLI) to safely create the first Admin user.
 - [ ] **Audit Immutability vs Erasure:** Enforce append-only rules for the audit trail, but define the GDPR/INPDP right-to-erasure reconciliation (e.g., erase PII from operational tables but retain a pseudonymized audit record).
 
@@ -68,5 +68,5 @@ Automated checks are foundational. Put this in place before touching complex log
 - [ ] **Missing Features:** Build Forum Moderation (admin deletion) and Secure Document Sharing (Avocat ↔ Client).
 - [ ] **Transactional Email:** Move off Gmail SMTP. Use AWS SES or SendGrid with proper SPF/DKIM/DMARC records.
 - [ ] **Security Headers & Scanning:** Add HSTS/CSP headers, and integrate Dependabot / OWASP Dependency-Check.
-- [ ] **`JPA_DDL_AUTO=validate`:** Lock the production schema.
+- [x] **`JPA_DDL_AUTO=validate`:** `validate` is now the default in `application.properties` (no longer `update`). Verified against a *pristine* database — the 15 migrations V0→V14 applied to an empty schema, then validated with zero drift. Validating against a database that had run under `update` would have proven nothing, since Hibernate may have silently patched it over time.
 - [ ] **WhatsApp Bridge Review:** Acknowledge the account-ban risk of using the unofficial `whatsapp-web.js` library, or plan a migration to the official Cloud API.

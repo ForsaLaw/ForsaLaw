@@ -17,14 +17,14 @@ services:
     container_name: forsalaw-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-forsalaw}
+      POSTGRES_DB: ${DB_NAME:-forsalaw_rag}
       POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME est obligatoire}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD est obligatoire}
     volumes:
       - forsalaw_pgdata:/var/lib/postgresql/data
     networks: [forsalaw-net]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-forsalaw}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-forsalaw_rag}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -161,7 +161,7 @@ services:
     networks: [forsalaw-net]
     environment:
       # ─── Base de donnees ───────────────────────────────────────────────
-      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-forsalaw}
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-forsalaw_rag}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       # Le schema est gere par Flyway : Hibernate se contente de le valider.
