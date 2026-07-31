@@ -29,7 +29,11 @@ if [[ -f "$FICHIER_ENV" ]]; then
 fi
 
 # ─── Configuration ──────────────────────────────────────────────────────────
-DB_NAME="${DB_NAME:-forsalaw}"
+# forsalaw_rag est la base ACTIVE. Le defaut precedent ("forsalaw") designait la base
+# abandonnee, restee bloquee sur la migration V1 : une sauvegarde lancee sans DB_NAME
+# explicite produisait donc un dump parfaitement valide... d'une base vide. Voir
+# scripts/retire-abandoned-db.sh, qui met cette base hors d'atteinte.
+DB_NAME="${DB_NAME:-forsalaw_rag}"
 DB_USERNAME="${DB_USERNAME:?DB_USERNAME est requis}"
 SERVICE_POSTGRES="${SERVICE_POSTGRES:-postgres}"
 COMPOSE_FILE="${COMPOSE_FILE:-$RACINE/docker-compose.prod.yml}"
@@ -43,6 +47,13 @@ BUCKET_BACKUP="${BACKUP_S3_BUCKET:-forsalaw-backups}"
 S3_ENDPOINT_BACKUP="${BACKUP_S3_ENDPOINT:-${S3_ENDPOINT:-http://localhost:9000}}"
 S3_ACCESS_KEY="${BACKUP_S3_ACCESS_KEY:-${S3_ACCESS_KEY:?S3_ACCESS_KEY est requis}}"
 S3_SECRET_KEY="${BACKUP_S3_SECRET_KEY:-${S3_SECRET_KEY:?S3_SECRET_KEY est requis}}"
+
+# Sans copie hors de l'hote, il n'y a pas de reprise apres sinistre : la perte de la machine
+# emporte la base ET ses sauvegardes. Le script REFUSE donc de se terminer en succes dans ce
+# cas — un cron qui rapporte "OK" sur une sauvegarde non deportee est pire que pas de cron du
+# tout, puisqu'il fait croire que le sujet est traite. Mettre BACKUP_ALLOW_LOCAL_ONLY=true
+# pour l'accepter sciemment (poste de developpement, restauration ponctuelle).
+AUTORISER_LOCAL_SEUL="${BACKUP_ALLOW_LOCAL_ONLY:-false}"
 
 HORODATAGE="$(date -u +%Y%m%d-%H%M%S)"
 NOM_DUMP="forsalaw-${HORODATAGE}.dump"
@@ -74,10 +85,34 @@ if [[ "$TAILLE" -lt 1024 ]]; then
 fi
 journal "Dump ecrit : $CHEMIN_DUMP ($(numfmt --to=iec "$TAILLE" 2>/dev/null || echo "${TAILLE} o"))"
 
+# Le controle de taille ne dit pas si l'archive est LISIBLE. pg_restore --list la parcourt
+# reellement : un dump tronque ou corrompu echoue ici, alors qu'il passait le seuil d'octets.
+journal "Verification de l'integrite de l'archive..."
+if ! docker compose -f "$COMPOSE_FILE" exec -T "$SERVICE_POSTGRES" \
+        pg_restore --list < "$CHEMIN_DUMP" > /dev/null 2>&1; then
+    journal "ECHEC : l'archive est illisible par pg_restore, elle ne serait pas restaurable."
+    rm -f "$CHEMIN_DUMP"
+    exit 1
+fi
+journal "Archive lisible par pg_restore."
+
 # ─── 2. Envoi vers le stockage objet ────────────────────────────────────────
+# Sauvegarder vers le MEME stockage que l'application ne protege de rien : l'incident qui
+# emporte l'hote emporte les deux. On le signale explicitement plutot que de le laisser
+# passer inapercu derriere une valeur par defaut.
+if [[ -z "${BACKUP_S3_ENDPOINT:-}" ]]; then
+    journal "AVERTISSEMENT : BACKUP_S3_ENDPOINT n'est pas defini — repli sur le stockage"
+    journal "               applicatif ($S3_ENDPOINT_BACKUP). Si celui-ci partage l'hote de"
+    journal "               PostgreSQL, la perte de l'hote emporte la base ET les sauvegardes."
+fi
+
 if ! command -v mc >/dev/null 2>&1; then
-    journal "AVERTISSEMENT : le client 'mc' est absent, envoi distant ignore."
-    journal "               La sauvegarde n'existe QUE localement : ce n'est pas une reprise apres sinistre."
+    journal "Le client 'mc' est absent : aucun envoi hors de cet hote n'est possible."
+    if [[ "$AUTORISER_LOCAL_SEUL" != "true" ]]; then
+        journal "ECHEC : sauvegarde purement locale refusee (BACKUP_ALLOW_LOCAL_ONLY=true pour l'accepter)."
+        exit 1
+    fi
+    journal "AVERTISSEMENT : accepte via BACKUP_ALLOW_LOCAL_ONLY — ce n'est PAS une reprise apres sinistre."
 else
     journal "Envoi vers $BUCKET_BACKUP/$PREFIXE_OBJET/ ..."
     mc alias set forsalaw-backup "$S3_ENDPOINT_BACKUP" "$S3_ACCESS_KEY" "$S3_SECRET_KEY" >/dev/null

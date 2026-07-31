@@ -11,7 +11,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
@@ -23,6 +25,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -50,6 +53,12 @@ public class SecurityConfig {
     /** Origines frontend autorisees pour CORS (liste separee par des virgules), voir application.properties. */
     @Value("${forsalaw.cors.allowed-origins}")
     private String allowedOrigins;
+
+    /** Politique CSP, surchargeable par environnement (voir application.properties). */
+    @Value("${forsalaw.security.content-security-policy}")
+    private String contentSecurityPolicy;
+
+    private static final long HSTS_UN_AN_EN_SECONDES = 31_536_000L;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -135,7 +144,28 @@ public class SecurityConfig {
                                 .authorizationRequestRepository(oAuth2AuthorizationRequestRepository))
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                // En-tetes de securite. X-Frame-Options passe de SAMEORIGIN a DENY : le
+                // SAMEORIGIN n'existait que pour la console H2, dont la dependance est en
+                // portee "test" — elle ne peut donc pas tourner hors tests. Plus rien de
+                // legitime n'affiche cette application dans une frame.
+                .headers(headers -> headers
+                        .frameOptions(FrameOptionsConfig::deny)
+                        // nosniff : actif par defaut, rendu explicite pour qu'une future
+                        // reecriture de ce bloc ne le retire pas sans s'en apercevoir.
+                        .contentTypeOptions(Customizer.withDefaults())
+                        // HSTS. Spring n'emet cet en-tete que sur une requete DEJA en HTTPS :
+                        // il reste donc absent en developpement HTTP, ce qui est correct.
+                        // preload volontairement NON active : l'inscription sur la liste des
+                        // navigateurs est difficilement reversible et engage tous les
+                        // sous-domaines, y compris ceux qui n'existent pas encore.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(HSTS_UN_AN_EN_SECONDES))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy))
+                        // Evite de fuiter le chemin complet (souvent porteur d'identifiants
+                        // de dossier) vers un site tiers via le Referer.
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 // APRES le filtre JWT : le quota de /api/ai/** est par utilisateur, il lui faut
                 // donc un SecurityContext deja renseigne. Les endpoints d'authentification
