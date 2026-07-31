@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AI_CONSENT_VERSION, enregistrerConsentement } from './aiConsent.js'
+import { AI_CONSENT_VERSION, enregistrerConsentementServeur } from './aiConsent.js'
 
 /**
  * Modale de consentement bloquante affichee avant tout usage de l'assistant IA.
@@ -32,7 +32,9 @@ export default function AiConsentModal({ onAccept, onRefuse }) {
 
   const accepter = () => {
     if (!caseCochee) return
-    enregistrerConsentement()
+    // Le cache local est ecrit immediatement par enregistrerConsentementServeur, l'appel
+    // reseau se poursuit en arriere-plan : l'utilisateur n'attend pas le serveur pour entrer.
+    enregistrerConsentementServeur()
     onAccept?.()
   }
 

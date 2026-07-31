@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,9 +44,15 @@ public class AiChatController {
     )
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chat(@Valid @RequestBody AiChatRequest requete) {
+    public SseEmitter chat(@Valid @RequestBody AiChatRequest requete, Authentication authentication) {
+        // Identite capturee ICI, sur le thread de la requete : la generation s'execute sur
+        // aiChatExecutor, ou le SecurityContext n'est PAS propage. La lire depuis le pool
+        // renverrait un contexte vide et le budget ne serait rattache a personne.
+        String email = authentication.getName();
+
         SseEmitter emitter = new SseEmitter(AUCUN_DELAI);
-        aiChatExecutor.execute(() -> aiChatService.repondreEnFlux(requete.getQuestion(), requete.getTier(), emitter));
+        aiChatExecutor.execute(() ->
+                aiChatService.repondreEnFlux(requete.getQuestion(), requete.getTier(), email, emitter));
         return emitter;
     }
 }

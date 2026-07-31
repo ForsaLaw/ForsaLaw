@@ -13,13 +13,14 @@
  * D'ou l'incrementation : un consentement donne sur le texte v1 ("tout reste dans votre
  * navigateur") ne peut pas valoir pour ce nouveau comportement.
  *
- * DETTE CONNUE, PAS CORRIGEE ICI : le stockage reste local (localStorage), alors que ce
- * fichier anticipait deja "des qu'un vrai backend IA existera, le consentement devra etre
- * enregistre COTE SERVEUR (identifiant utilisateur, version acceptee, horodatage)". C'est
- * maintenant le cas, mais l'enregistrement serveur est une fonctionnalite a part entiere
- * (table, endpoint) au-dela de la mise a jour de texte demandee ici -- localStorage reste
- * effacable par l'utilisateur et ne constitue pas une preuve opposable de consentement.
+ * STOCKAGE : le consentement est desormais enregistre COTE SERVEUR (users.ai_consent_version
+ * et users.ai_consented_at, via /api/ai/consent). Le localStorage est conserve uniquement
+ * comme cache d'affichage, pour eviter un appel reseau bloquant avant de savoir s'il faut
+ * afficher la modale -- il n'est plus la preuve du consentement, la base l'est. Un utilisateur
+ * qui vide son navigateur ne reconsent donc plus : la valeur serveur fait autorite.
  */
+
+import { apiFetch } from '../../api/client.js'
 
 export const AI_CONSENT_VERSION = 2
 
@@ -48,6 +49,44 @@ export function enregistrerConsentement() {
   } catch {
     // Echec d'ecriture : la modale se reaffichera a la prochaine visite, ce qui est le
     // comportement sur — mieux vaut redemander que supposer un accord.
+  }
+}
+
+/**
+ * Lit le consentement faisant autorite, cote serveur.
+ *
+ * @returns {Promise<boolean|null>} vrai/faux si le serveur a repondu, `null` s'il est
+ *   injoignable ou l'utilisateur non authentifie — l'appelant retombe alors sur le cache local
+ *   plutot que de supposer un refus (ce qui rafficherait la modale a chaque coupure reseau).
+ */
+export async function litConsentementServeur() {
+  try {
+    const res = await apiFetch('/api/ai/consent')
+    if (!res.ok) return null
+    const donnees = await res.json()
+    return donnees?.version === AI_CONSENT_VERSION
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Enregistre le consentement cote serveur (preuve opposable) ET en cache local.
+ *
+ * Le cache est ecrit meme si l'appel serveur echoue : l'utilisateur a bien clique, lui
+ * reafficher la modale en boucle sur une coupure reseau serait une regression d'usage. La
+ * valeur serveur reste la reference et sera reecrite au prochain consentement reussi.
+ */
+export async function enregistrerConsentementServeur() {
+  enregistrerConsentement()
+  try {
+    await apiFetch('/api/ai/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: AI_CONSENT_VERSION }),
+    })
+  } catch {
+    // Voir ci-dessus : le geste local est conserve, l'enregistrement serveur reessaiera.
   }
 }
 

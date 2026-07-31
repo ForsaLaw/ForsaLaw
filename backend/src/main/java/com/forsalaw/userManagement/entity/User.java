@@ -57,6 +57,22 @@ public class User {
     @Column(name = "blocked_by_failed_attempts", nullable = false, columnDefinition = "boolean default false")
     private boolean blockedByFailedAttempts = false;
 
+    /** Plafond quotidien de jetons IA, surchargeable par compte (voir AiTokenBudgetService). */
+    @Column(name = "daily_token_budget", nullable = false, columnDefinition = "integer default 50000")
+    private int dailyTokenBudget = 50_000;
+
+    /**
+     * Version du texte de consentement IA acceptee, {@code null} si jamais accepte.
+     *
+     * <p>Non retro-remplissable : le consentement anterieur n'existe que dans le localStorage
+     * du navigateur. Voir AiConsentController pour la consequence sur l'application du controle.</p>
+     */
+    @Column(name = "ai_consent_version")
+    private Integer aiConsentVersion;
+
+    @Column(name = "ai_consented_at")
+    private LocalDateTime aiConsentedAt;
+
     @Column(name = "datecreation", nullable = false, updatable = false)
     private LocalDateTime dateCreation;
 

@@ -1,6 +1,7 @@
 package com.forsalaw.ragManagement.chat;
 
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.forsalaw.ragManagement.chat.budget.AiTokenBudgetService;
 import com.forsalaw.ragManagement.ingestion.LegalDocumentIngestionService;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository.ResultatRecherche;
 import com.forsalaw.ragManagement.search.LegalChunkSearchService;
@@ -32,6 +33,7 @@ public class AiChatService {
 
     private final LegalChunkSearchService searchService;
     private final ChatGenerationClient chatGenerationClient;
+    private final AiTokenBudgetService budgetService;
 
     /**
      * Consignes de citation stricte : le modele ne doit repondre qu'a partir des extraits
@@ -53,11 +55,25 @@ public class AiChatService {
             - Rappelle que tu ne remplaces pas l'avis d'un avocat inscrit au barreau.
             """;
 
-    public void repondreEnFlux(String question, int tier, SseEmitter emitter) {
+    /**
+     * @param emailUtilisateur identite capturee sur le thread de la requete par le controleur.
+     *     Elle DOIT etre passee explicitement : cette methode s'execute sur un pool dedie, ou le
+     *     SecurityContext n'est pas propage — le lire ici renverrait un contexte vide.
+     */
+    public void repondreEnFlux(String question, int tier, String emailUtilisateur, SseEmitter emitter) {
         if (tier != LegalDocumentIngestionService.TIER_LEGISLATION
                 && tier != LegalDocumentIngestionService.TIER_JURISPRUDENCE) {
             envoyerErreurEtFermer(emitter, "Seuls les niveaux 1 (legislation) et 2 (jurisprudence) "
                     + "sont accessibles depuis cet assistant.");
+            return;
+        }
+
+        // Depot preleve AVANT toute generation : le cout reel n'est connu qu'a la fin du flux.
+        final Long idUsage;
+        try {
+            idUsage = budgetService.reserver(emailUtilisateur);
+        } catch (AiTokenBudgetService.BudgetEpuiseException e) {
+            envoyerErreurEtFermer(emitter, e.getMessage());
             return;
         }
 
@@ -90,7 +106,11 @@ public class AiChatService {
             }
 
             @Override
-            public void surFin() {
+            public void surFin(ChatGenerationClient.UsageJetons usage) {
+                // Ajustement du depot au cout reel. Si le client s'est deconnecte avant cette
+                // trame, ce code n'est jamais atteint et le depot reste acquis : c'est ce qui
+                // rend une boucle d'abandon couteuse.
+                budgetService.regler(idUsage, usage.invite(), usage.reponse());
                 emitter.complete();
             }
 
