@@ -349,5 +349,9 @@
   "sanctum_lawyers_title": "Lawyers specialising in your issue",
   "sanctum_lawyers_domain": "Detected area of law:",
   "sanctum_lawyers_empty": "No lawyer is registered in this area yet.",
-  "sanctum_lawyers_see_all": "See all lawyers"
+  "sanctum_lawyers_see_all": "See all lawyers",
+  "lawyer_verified_onat": "ONAT verified",
+  "lawyer_verified_onat_hint": "ONAT registration number verified by a ForsaLaw administrator.",
+  "lawyer_space_onat": "ONAT registration number",
+  "lawyer_space_onat_hint": "Required to verify your profile. This number is not shown publicly: it lets us check your application against the Bar roll."
 }

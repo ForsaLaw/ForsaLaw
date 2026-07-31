@@ -37,6 +37,15 @@ public class CreateAvocatRequest {
     @Size(max = 100)
     private String numeroCarteProfessionnelle;
 
+    /**
+     * Numero d'inscription a l'ONAT. Obligatoire pour toute NOUVELLE demande : c'est la piece
+     * qui permet de confronter la declaration au tableau de l'Ordre. La colonne reste nullable
+     * en base pour les profils anterieurs (voir V16).
+     */
+    @NotBlank(message = "Le numero d'inscription a l'ONAT est requis")
+    @Size(max = 100)
+    private String numeroOnat;
+
     @NotBlank(message = "Le CIN est requis")
     @Size(max = 50)
     private String cin;

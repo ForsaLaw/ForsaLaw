@@ -349,5 +349,9 @@
   "sanctum_lawyers_title": "محامون مختصون في وضعك",
   "sanctum_lawyers_domain": "المجال المحدد:",
   "sanctum_lawyers_empty": "لا يوجد محامٍ مسجل في هذا المجال بعد.",
-  "sanctum_lawyers_see_all": "عرض كل المحامين"
+  "sanctum_lawyers_see_all": "عرض كل المحامين",
+  "lawyer_verified_onat": "موثّق من الهيئة",
+  "lawyer_verified_onat_hint": "رقم التسجيل بالهيئة الوطنية للمحامين، تم التحقق منه من طرف إدارة ForsaLaw.",
+  "lawyer_space_onat": "رقم التسجيل بالهيئة الوطنية للمحامين",
+  "lawyer_space_onat_hint": "مطلوب للتحقق من ملفك. لا يُعرض هذا الرقم للعموم: فهو يتيح مطابقة طلبك مع جدول الهيئة."
 }

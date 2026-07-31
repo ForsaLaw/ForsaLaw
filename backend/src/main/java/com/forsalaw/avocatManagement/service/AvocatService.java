@@ -46,6 +46,9 @@ public class AvocatService {
         if (avocatRepository.existsByCinIgnoreCase(request.getCin().trim())) {
             throw new IllegalArgumentException("Ce CIN est deja utilise.");
         }
+        if (avocatRepository.existsByNumeroOnatIgnoreCase(request.getNumeroOnat().trim())) {
+            throw new IllegalArgumentException("Ce numero d'inscription a l'ONAT est deja utilise.");
+        }
         if (request.getDomaine() == null) {
             throw new IllegalArgumentException("Le domaine du droit est requis lors de la création du profil.");
         }
@@ -63,6 +66,7 @@ public class AvocatService {
         avocat.setVille(request.getVille() != null ? request.getVille() : "");
         avocat.setDescription(request.getDescription());
         avocat.setNumeroCarteProfessionnelle(request.getNumeroCarteProfessionnelle().trim());
+        avocat.setNumeroOnat(request.getNumeroOnat().trim());
         avocat.setCin(request.getCin().trim());
         avocat.setBarreau(request.getBarreau().trim());
         avocat.setVerificationStatus(AvocatVerificationStatus.PENDING);
@@ -107,7 +111,7 @@ public class AvocatService {
 
     public Page<AvocatDTO> findAllPublic(Pageable pageable, SpecialiteJuridique specialite, String ville, Boolean verifie) {
         return avocatRepository.findAllActifsFiltered(specialite, ville != null ? ville.trim() : null, verifie, pageable)
-                .map(this::toDTO);
+                .map(this::toPublicDTO);
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +121,27 @@ public class AvocatService {
         if (!avocat.isActif()) {
             throw new IllegalArgumentException("Avocat non trouvé.");
         }
-        return toDTO(avocat);
+        return toPublicDTO(avocat);
+    }
+
+    /**
+     * Projection destinee aux reponses NON AUTHENTIFIEES : identifiants personnels retires.
+     *
+     * <p>La liste publique exposait le CIN — le numero de carte d'identite nationale — ainsi que
+     * le numero de carte professionnelle, a n'importe quel visiteur non authentifie. Le numero
+     * ONAT introduit en V16 empruntait le meme chemin. Aucun de ces identifiants n'est utile
+     * pour choisir un avocat : ils servent au controle administratif, pas a la mise en relation.</p>
+     *
+     * <p>Ce qui atteste la verification cote public, c'est le couple
+     * {@code verificationStatus}/{@code verifie} — pas le numero lui-meme, que le visiteur ne
+     * pourrait de toute facon pas confronter au tableau de l'Ordre.</p>
+     */
+    private AvocatDTO toPublicDTO(Avocat a) {
+        AvocatDTO dto = toDTO(a);
+        dto.setCin(null);
+        dto.setNumeroCarteProfessionnelle(null);
+        dto.setNumeroOnat(null);
+        return dto;
     }
 
     public Page<AvocatDTO> findAllAdmin(Pageable pageable, SpecialiteJuridique specialite, String ville, Boolean verifie, Boolean actif) {
@@ -225,7 +249,8 @@ public class AvocatService {
         return avocatRepository
                 .findActifsParSpecialites(specialites, PageRequest.of(0, limite))
                 .stream()
-                .map(this::toDTO)
+                // Endpoint public (carte de recommandation IA) : meme expurgation que la liste.
+                .map(this::toPublicDTO)
                 .toList();
     }
 
@@ -250,6 +275,7 @@ public class AvocatService {
         dto.setVille(a.getVille());
         dto.setDescription(a.getDescription());
         dto.setNumeroCarteProfessionnelle(a.getNumeroCarteProfessionnelle());
+        dto.setNumeroOnat(a.getNumeroOnat());
         dto.setCin(a.getCin());
         dto.setBarreau(a.getBarreau());
         dto.setNoteMoyenne(a.getNoteMoyenne());

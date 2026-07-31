@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../../api/client.js'
+import VerifiedLawyerBadge from '../lawyers/VerifiedLawyerBadge.jsx'
 
 /**
  * Carte de recommandation affichee sous la reponse de l'assistant, quand un domaine a pu etre
@@ -60,7 +61,9 @@ export default function AvocatsRecommandesCard({ domaine }) {
             <li key={a.id} className="avocats-reco-item">
               <div className="avocats-reco-nom">
                 {a.userPrenom} {a.userNom}
-                {a.verifie && <span className="avocats-reco-verifie" title="Verifie">✓</span>}
+                {/* Badge partage plutot qu'une coche locale : la coche s'appuyait sur le seul
+                    champ `verifie`, sans verifier le statut d'approbation. */}
+                <VerifiedLawyerBadge avocat={a} taille="sm" avecLibelle={false} />
               </div>
               <div className="avocats-reco-meta">
                 {a.specialiteLibelle}

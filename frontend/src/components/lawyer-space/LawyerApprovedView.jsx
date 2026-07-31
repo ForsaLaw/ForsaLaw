@@ -2,6 +2,7 @@ import { Award } from 'lucide-react'
 import LawyerAgendaSection from './LawyerAgendaSection.jsx'
 import LawyerAppointmentsSection from './LawyerAppointmentsSection.jsx'
 import LawyerSecuritySection from './LawyerSecuritySection.jsx'
+import VerifiedLawyerBadge from '../lawyers/VerifiedLawyerBadge.jsx'
 
 export default function LawyerApprovedView({
   t,
@@ -95,6 +96,7 @@ export default function LawyerApprovedView({
             )}
             <p className="lawyer-space-identity-line">
               <strong>{profile.userPrenom} {profile.userNom}</strong>
+              <VerifiedLawyerBadge avocat={profile} />
               <span className="lawyer-space-muted"> · {profile.userEmail}</span>
             </p>
             <p>
@@ -109,6 +111,11 @@ export default function LawyerApprovedView({
             <p><strong>{t('lawyer_space_bar_id')}:</strong> {profile.numeroCarteProfessionnelle}</p>
             <p><strong>{t('lawyer_space_cin')}:</strong> {profile.cin}</p>
             <p><strong>{t('lawyer_space_barreau')}:</strong> {profile.barreau}</p>
+            {/* Absent des profils anterieurs a V16, ou la colonne est restee NULL : on masque la
+                ligne plutot que d'afficher un libelle suivi du vide. */}
+            {profile.numeroOnat && (
+              <p><strong>{t('lawyer_space_onat')}:</strong> {profile.numeroOnat}</p>
+            )}
           </div>
         </div>
       </section>

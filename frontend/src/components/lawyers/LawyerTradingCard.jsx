@@ -1,4 +1,5 @@
 import { MapPin, Star, User } from 'lucide-react'
+import VerifiedLawyerBadge from './VerifiedLawyerBadge.jsx'
 
 const rankFromProfile = (avocat) => {
   if (avocat.verificationStatus === 'APPROVED') return 'S-TIER'
@@ -41,7 +42,10 @@ export default function LawyerTradingCard({
         </div>
 
         <div className="card-body">
-          <h3 className="card-name">{fullName}</h3>
+          <h3 className="card-name">
+            {fullName}
+            <VerifiedLawyerBadge avocat={lawyer} taille="sm" avecLibelle={false} />
+          </h3>
           <span className="card-specialty">{specialty}</span>
 
           <div className="card-stats">

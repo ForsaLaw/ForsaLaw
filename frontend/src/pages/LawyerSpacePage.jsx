@@ -36,6 +36,8 @@ export default function LawyerSpacePage() {
     createCin,
     setCreateCin,
     createBarreau,
+    createOnat,
+    setCreateOnat,
     setCreateBarreau,
     createBusy,
     createMsg,
@@ -166,6 +168,8 @@ export default function LawyerSpacePage() {
           createCin={createCin}
           setCreateCin={setCreateCin}
           createBarreau={createBarreau}
+          createOnat={createOnat}
+          setCreateOnat={setCreateOnat}
           setCreateBarreau={setCreateBarreau}
           createMsg={createMsg}
           createBusy={createBusy}

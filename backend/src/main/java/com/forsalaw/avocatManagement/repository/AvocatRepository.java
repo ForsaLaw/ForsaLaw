@@ -43,6 +43,9 @@ public interface AvocatRepository extends JpaRepository<Avocat, String> {
 
     boolean existsByCinIgnoreCase(String cin);
 
+    /** Double emploi d'un numero ONAT : deux avocats ne peuvent pas partager la meme inscription. */
+    boolean existsByNumeroOnatIgnoreCase(String numeroOnat);
+
     @Query(value = "SELECT a FROM Avocat a JOIN FETCH a.user WHERE a.actif = true " +
            "AND (:specialite IS NULL OR a.specialite = :specialite) " +
            "AND (:ville IS NULL OR :ville = '' OR LOWER(a.ville) LIKE LOWER(CONCAT('%', :ville, '%'))) " +

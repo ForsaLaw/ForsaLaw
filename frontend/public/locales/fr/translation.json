@@ -349,5 +349,9 @@
   "sanctum_lawyers_title": "Avocats specialises dans votre situation",
   "sanctum_lawyers_domain": "Domaine identifie :",
   "sanctum_lawyers_empty": "Aucun avocat n est encore inscrit dans ce domaine.",
-  "sanctum_lawyers_see_all": "Voir tous les avocats"
+  "sanctum_lawyers_see_all": "Voir tous les avocats",
+  "lawyer_verified_onat": "Vérifié par l’ONAT",
+  "lawyer_verified_onat_hint": "Numéro d’inscription à l’ONAT vérifié par un administrateur ForsaLaw.",
+  "lawyer_space_onat": "Numéro d’inscription à l’ONAT",
+  "lawyer_space_onat_hint": "Requis pour la vérification de votre profil. Ce numéro n’est pas affiché publiquement : il permet de confronter votre demande au tableau de l’Ordre."
 }

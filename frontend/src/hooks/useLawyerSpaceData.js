@@ -19,6 +19,7 @@ export function useLawyerSpaceData({ token, isAuthenticated, refreshUser, t, nav
   const [createCarte, setCreateCarte] = useState('')
   const [createCin, setCreateCin] = useState('')
   const [createBarreau, setCreateBarreau] = useState('')
+  const [createOnat, setCreateOnat] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
   const [createMsg, setCreateMsg] = useState(null)
 
@@ -323,6 +324,7 @@ export function useLawyerSpaceData({ token, isAuthenticated, refreshUser, t, nav
         numeroCarteProfessionnelle: createCarte.trim(),
         cin: createCin.trim(),
         barreau: createBarreau.trim(),
+        numeroOnat: createOnat.trim(),
       }
       const dto = await avocatsApi.createMyAvocatProfile(token, body)
       setProfile(dto)
@@ -338,7 +340,7 @@ export function useLawyerSpaceData({ token, isAuthenticated, refreshUser, t, nav
     } finally {
       setCreateBusy(false)
     }
-  }, [token, createDomain, createSpec, createYears, createVille, createDesc, createCarte, createCin, createBarreau, refreshUser])
+  }, [token, createDomain, createSpec, createYears, createVille, createDesc, createCarte, createCin, createBarreau, createOnat, refreshUser])
 
   const handleEdit = useCallback(async (e) => {
     e.preventDefault()
@@ -487,6 +489,8 @@ export function useLawyerSpaceData({ token, isAuthenticated, refreshUser, t, nav
     createCin,
     setCreateCin,
     createBarreau,
+    createOnat,
+    setCreateOnat,
     setCreateBarreau,
     createBusy,
     createMsg,
