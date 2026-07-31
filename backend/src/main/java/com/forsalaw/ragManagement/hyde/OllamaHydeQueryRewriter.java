@@ -1,5 +1,6 @@
 package com.forsalaw.ragManagement.hyde;
 
+import com.forsalaw.ragManagement.llm.ScriptInattenduDetector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,7 +13,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Reformulation HyDE via un petit modele instruct auto-heberge (Ollama), sidecar au meme
@@ -72,9 +72,6 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
             Reponds UNIQUEMENT par le paragraphe hypothetique, sans introduction, sans \
             guillemets, sans commentaire.""";
 
-    /** Scripts jamais legitimes ici (ni francais, ni arabe) : leur presence signale une sortie degradee. */
-    private static final Pattern SCRIPT_INATTENDU = Pattern.compile(
-            "[一-鿿぀-ヿ가-힣Ѐ-ӿ]");
     private static final int MAX_CARACTERES_INATTENDUS_TOLERES = 2;
     private static final int LONGUEUR_MIN = 15;
     private static final int LONGUEUR_MAX = 1500;
@@ -143,7 +140,7 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
                     + "question brute.", nettoyee.length(), question);
             return Optional.empty();
         }
-        long inattendus = SCRIPT_INATTENDU.matcher(nettoyee).results().count();
+        long inattendus = ScriptInattenduDetector.compterCaracteresInattendus(nettoyee);
         if (inattendus > MAX_CARACTERES_INATTENDUS_TOLERES) {
             log.warn("HyDE : {} caractere(s) d'un alphabet inattendu dans la reponse a « {} », "
                     + "repli sur la question brute.", inattendus, question);

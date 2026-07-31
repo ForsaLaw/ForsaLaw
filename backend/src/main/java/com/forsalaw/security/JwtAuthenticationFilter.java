@@ -80,6 +80,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Rejoue l'authentification sur les dispatches ASYNC (par defaut, OncePerRequestFilter les
+     * ignore).
+     *
+     * <p>Indispensable pour les reponses en flux (SseEmitter, cf. {@code /api/ai/chat}) : quand
+     * l'emitter se termine, Tomcat redispatche la requete a travers la chaine de filtres. Comme
+     * la session est STATELESS, aucun SecurityContext n'est restaure sur ce second passage ; si
+     * ce filtre est saute, la requete redevient anonyme, l'AuthorizationFilter la refuse, et
+     * comme la reponse est deja commitee (les jetons ont ete streames), l'erreur ne peut plus
+     * etre ecrite : la connexion reste ouverte et le client n'est jamais notifie de la fin du
+     * flux. Le JWT etant porte par le cookie de la requete, il est simplement relu ici.</p>
+     */
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
     /** JWT depuis l'en-tete Authorization (Swagger / clients HTTP), null si absent. */
     private String extractFromHeader(HttpServletRequest request) {
         String authHeader = request.getHeader(AUTHORIZATION_HEADER);
