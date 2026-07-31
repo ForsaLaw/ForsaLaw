@@ -84,6 +84,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (estAnnuaireAvocatsPublic(request, chemin)) {
             return new Quota("avocats", "avocats|" + ipAppelant(request), proprietes.getAvocatsPerMinute());
         }
+        // Endpoint ouvert qui ecrit en base et declenche un paiement : a proteger des abus, mais
+        // avec un quota large — un proche affole peut legitimement s'y reprendre a plusieurs fois.
+        if (chemin.startsWith("/api/sos/")) {
+            return new Quota("sos", "sos|" + ipAppelant(request), proprietes.getSosPerMinute());
+        }
         if (chemin.startsWith("/api/ai/")) {
             // Par utilisateur : le cout reel est porte par le compte, pas par l'adresse. Repli
             // sur l'IP si la requete n'est pas authentifiee (elle sera refusee ensuite, mais on

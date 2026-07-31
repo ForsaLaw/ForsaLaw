@@ -1,6 +1,7 @@
 package com.forsalaw.ragManagement.chat;
 
 import com.forsalaw.ragManagement.chat.budget.AiTokenBudgetService;
+import com.forsalaw.ragManagement.chat.routing.DomaineClassifier;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository.ResultatRecherche;
 import com.forsalaw.ragManagement.search.LegalChunkSearchService;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitterTestHandl
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,6 +46,9 @@ class AiChatServiceTest {
     @Mock LegalChunkSearchService searchService;
     @Mock ChatGenerationClient chatGenerationClient;
     @Mock AiTokenBudgetService budgetService;
+    @Mock DomaineClassifier domaineClassifier;
+    /** Executeur direct : la classification s'execute sur le thread du test, resultat immediat. */
+    private final Executor routingExecutor = Runnable::run;
     @Captor ArgumentCaptor<List<ChatGenerationClient.Message>> messagesCaptor;
     @Captor ArgumentCaptor<ChatGenerationClient.GestionnaireFlux> gestionnaireCaptor;
 
@@ -51,7 +56,7 @@ class AiChatServiceTest {
 
     @BeforeEach
     void preparer() {
-        service = new AiChatService(searchService, chatGenerationClient, budgetService);
+        service = new AiChatService(searchService, chatGenerationClient, budgetService, domaineClassifier, routingExecutor);
     }
 
     @Test

@@ -23,4 +23,10 @@ public class RateLimitProperties {
 
     /** Assistant IA : par utilisateur authentifie. */
     private int aiChatPerMinute = 5;
+
+    /**
+     * Signalements SOS : par IP. Volontairement large — l'endpoint est ouvert et doit resister
+     * aux abus, mais bloquer un proche qui s'y reprend a plusieurs fois serait pire que le risque.
+     */
+    private int sosPerMinute = 10;
 }

@@ -77,9 +77,11 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
     private static final int LONGUEUR_MAX = 1500;
 
     private final RestClient restClient;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final String modele;
 
     public OllamaHydeQueryRewriter(
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
             @Value("${forsalaw.rag.hyde.base-url:http://localhost:11434}") String baseUrl,
             @Value("${forsalaw.rag.hyde.model:qwen2.5:3b-instruct}") String modele,
             @Value("${forsalaw.rag.hyde.timeout-seconds:8}") int timeoutSeconds
@@ -91,6 +93,7 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
         requestFactory.setReadTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
 
         this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+        this.objectMapper = objectMapper;
         this.modele = modele;
     }
 
@@ -101,20 +104,35 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
                 : "Cette question porte sur un texte legislatif (tier " + tier + ").";
 
         try {
-            var reponse = restClient.post()
+            // Corps lu en String puis parse a la main, et NON via .body(Record.class).
+            // Ollama renvoie son JSON avec un Content-Type application/octet-stream : la
+            // negociation de contenu de RestClient ne trouvait aucun convertisseur et levait une
+            // RestClientException, rattrapee juste en dessous. HyDE se repliait donc sur la
+            // question brute A CHAQUE APPEL — la reformulation ne s'appliquait jamais, sans que
+            // rien d'autre qu'une ligne WARN ne le signale. Lire du texte brut rend l'appel
+            // insensible au Content-Type annonce.
+            String corps = restClient.post()
                     .uri("/api/chat")
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
                     .body(new RequeteOllama(modele, List.of(
                             new Message("system", SYSTEME),
                             new Message("user", contexte + "\n\nQuestion : " + question)
                     ), false, Map.of("temperature", 0.2)))
                     .retrieve()
-                    .body(ReponseOllama.class);
+                    .body(String.class);
 
-            String hypothese = reponse == null || reponse.message() == null
-                    ? null : reponse.message().content();
+            String hypothese = null;
+            if (corps != null && !corps.isBlank()) {
+                var contenu = objectMapper.readTree(corps).path("message").path("content");
+                hypothese = contenu.isTextual() ? contenu.asText() : null;
+            }
 
             return validerOuRejeter(hypothese, question);
+
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.warn("HyDE : reponse illisible, repli sur la question brute ({}).", e.toString());
+            return Optional.empty();
 
         } catch (RestClientException e) {
             log.warn("HyDE : service de reformulation injoignable ou en timeout, repli sur la "
@@ -154,5 +172,4 @@ public class OllamaHydeQueryRewriter implements HydeQueryRewriter {
     private record RequeteOllama(String model, List<Message> messages, boolean stream,
                                   Map<String, Object> options) {}
 
-    private record ReponseOllama(Message message, boolean done) {}
 }

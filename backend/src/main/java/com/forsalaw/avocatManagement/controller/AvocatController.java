@@ -16,6 +16,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -42,6 +45,10 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/avocats")
 @RequiredArgsConstructor
+// Necessaire pour que les contraintes portees par les @RequestParam (ex. limite sur /match)
+// soient reellement evaluees : sans @Validated, @Min/@Max sur un parametre sont ignores en
+// silence et la borne n'existe que dans la documentation.
+@Validated
 public class AvocatController {
 
     private final AvocatService avocatService;
@@ -71,6 +78,21 @@ public class AvocatController {
                 .map(s -> new SpecialiteItem(s.name(), s.getLibelle()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(list);
+    }
+
+    @Operation(
+            summary = "Avocats recommandés pour un domaine (public)",
+            description = "Retourne jusqu'à 3 avocats actifs exerçant dans le domaine indiqué, "
+                    + "les mieux notés d'abord. Alimente la carte de recommandation affichée sous "
+                    + "la réponse de l'assistant IA, dont le domaine est issu de la même énumération "
+                    + "DomaineJuridique. Liste vide si aucun avocat n'exerce ce domaine."
+    )
+    @GetMapping("/match")
+    public ResponseEntity<List<AvocatDTO>> match(
+            @RequestParam DomaineJuridique domaine,
+            @RequestParam(defaultValue = "3") @Min(1) @Max(10) int limite
+    ) {
+        return ResponseEntity.ok(avocatService.trouverParDomaine(domaine, limite));
     }
 
     @Operation(summary = "Liste des avocats (public)", description = "Retourne une liste paginée des avocats actifs, avec filtres optionnels (spécialité, ville, vérifié). Accessible sans authentification.")

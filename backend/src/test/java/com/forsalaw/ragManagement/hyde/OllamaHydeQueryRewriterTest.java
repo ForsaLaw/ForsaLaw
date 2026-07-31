@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OllamaHydeQueryRewriterTest {
 
     private final OllamaHydeQueryRewriter rewriter =
-            new OllamaHydeQueryRewriter("http://localhost:1", "test-model", 1);
+            new OllamaHydeQueryRewriter(new com.fasterxml.jackson.databind.ObjectMapper(), "http://localhost:1", "test-model", 1);
 
     @Test
     void hypotheseFrancaiseValide_estAcceptee() {

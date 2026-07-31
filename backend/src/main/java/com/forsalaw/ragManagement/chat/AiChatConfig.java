@@ -22,4 +22,17 @@ public class AiChatConfig {
     public ExecutorService aiChatExecutor() {
         return Executors.newFixedThreadPool(4);
     }
+
+    /**
+     * Pool DISTINCT pour la classification du domaine.
+     *
+     * <p>Le partager avec {@code aiChatExecutor} creerait un interblocage : ce dernier n'a que 4
+     * fils, chacun occupe par une generation qui, a sa fin, attend le resultat d'une
+     * classification. Sous 4 conversations simultanees, les classifications resteraient en file
+     * derriere les generations qui les attendent — chacune bloquant l'autre.</p>
+     */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService routingExecutor() {
+        return Executors.newFixedThreadPool(2);
+    }
 }
