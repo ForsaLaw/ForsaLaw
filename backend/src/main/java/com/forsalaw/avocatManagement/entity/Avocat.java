@@ -44,6 +44,17 @@ public class Avocat {
     @Column(name = "numero_carte_professionnelle", length = 100)
     private String numeroCarteProfessionnelle;
 
+    /**
+     * Numero d'inscription a l'ONAT (Ordre National des Avocats de Tunisie).
+     *
+     * <p>Nullable en base : les profils anterieurs a V16 n'ont jamais eu a le fournir. Le
+     * caractere obligatoire ne vaut que pour les NOUVELLES demandes, ou il est impose par
+     * {@code CreateAvocatRequest} — une contrainte NOT NULL invaliderait retroactivement le
+     * parc existant.</p>
+     */
+    @Column(name = "numero_onat", length = 100)
+    private String numeroOnat;
+
     @Column(name = "cin", length = 50)
     private String cin;
 

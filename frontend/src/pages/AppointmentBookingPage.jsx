@@ -4,6 +4,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import * as avocatsApi from '../api/avocats.js'
+import VerifiedLawyerBadge from '../components/lawyers/VerifiedLawyerBadge.jsx'
 import * as rdvApi from '../api/rdv.js'
 import '../styles/PlatformSpaces.css'
 
@@ -100,6 +101,7 @@ export default function AppointmentBookingPage() {
           <section className="client-pro-card">
             <div className="client-pro-card__body">
               <strong>Avocat:</strong> Me. {avocat.userPrenom} {avocat.userNom} - {avocat.specialiteLibelle ?? avocat.specialite}
+              <VerifiedLawyerBadge avocat={avocat} taille="sm" />
             </div>
           </section>
 

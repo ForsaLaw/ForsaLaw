@@ -19,6 +19,8 @@ export default function LawyerApplicationFormSection({
   createCin,
   setCreateCin,
   createBarreau,
+  createOnat,
+  setCreateOnat,
   setCreateBarreau,
   createMsg,
   createBusy,
@@ -130,6 +132,18 @@ export default function LawyerApplicationFormSection({
                 required
                 maxLength={100}
               />
+            </label>
+            <label className="lawyer-space-label lawyer-space-label--span2">
+              <span>{t('lawyer_space_onat')}</span>
+              <input
+                value={createOnat}
+                onChange={(ev) => setCreateOnat(ev.target.value)}
+                required
+                maxLength={100}
+              />
+              {/* L'utilisateur doit comprendre POURQUOI ce numero est demande : il n'est pas
+                  affiche publiquement, il sert a confronter la demande au tableau de l'Ordre. */}
+              <small className="lawyer-space-hint">{t('lawyer_space_onat_hint')}</small>
             </label>
           </div>
 

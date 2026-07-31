@@ -1,0 +1,58 @@
+/* ============================================================
+   ForsaLaw — Badge « Verifie par l'ONAT »
+   Vert institutionnel, distinct du dore de la marque et du rouge SOS :
+   il doit se lire comme un CONSTAT, pas comme un element decoratif
+   ni comme une alerte.
+   ============================================================ */
+
+.verified-badge {
+  --verified-vert: #17794a;
+  --verified-vert-clair: #e6f4ec;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--verified-vert-clair);
+  color: var(--verified-vert);
+  border: 2px solid var(--verified-vert);
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.verified-badge--md {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.68rem;
+}
+
+.verified-badge--sm {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.6rem;
+}
+
+.verified-badge__text { line-height: 1; }
+
+/* Sur fond sombre (carte de recommandation IA, fiche avocat), l'aplat clair
+   creerait une tache lumineuse : on inverse en conservant le meme vert. */
+.avocats-reco .verified-badge,
+.lawyer-card .verified-badge {
+  background: rgba(23, 121, 74, 0.18);
+  color: #4ade80;
+  border-color: #4ade80;
+}
+
+/* Libelle masque visuellement mais restitue par les lecteurs d'ecran. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

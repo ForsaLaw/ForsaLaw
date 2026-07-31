@@ -25,6 +25,7 @@ public class AvocatDTO {
     private String ville;
     private String description;
     private String numeroCarteProfessionnelle;
+    private String numeroOnat;
     private String cin;
     private String barreau;
     private double noteMoyenne;
