@@ -353,5 +353,6 @@
   "lawyer_verified_onat": "ONAT verified",
   "lawyer_verified_onat_hint": "ONAT registration number verified by a ForsaLaw administrator.",
   "lawyer_space_onat": "ONAT registration number",
-  "lawyer_space_onat_hint": "Required to verify your profile. This number is not shown publicly: it lets us check your application against the Bar roll."
+  "lawyer_space_onat_hint": "Required to verify your profile. This number is not shown publicly: it lets us check your application against the Bar roll.",
+  "sanctum_lawyers_disclaimer": "AI recommendations may be inaccurate. Always verify the lawyer’s specialty."
 }

@@ -449,3 +449,15 @@
   background: var(--gold);
   color: var(--black);
 }
+
+/* Avertissement sur la fiabilite du classement automatique. Discret mais lisible :
+   il doit etre lu avant de contacter quelqu'un, pas noye dans le fond. */
+.avocats-reco-avertissement {
+  margin: 0.9rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+  border-left: 2px solid rgba(212, 175, 55, 0.4);
+  padding-left: 0.6rem;
+}

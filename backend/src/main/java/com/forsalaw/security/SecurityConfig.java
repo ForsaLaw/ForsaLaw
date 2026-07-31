@@ -2,6 +2,7 @@ package com.forsalaw.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forsalaw.security.ratelimit.RateLimitFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -106,7 +107,20 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                         .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
                 .authorizeHttpRequests(auth -> auth
+                        // Le renvoi interne vers /error repasse par cette chaine. Sans cette
+                        // ligne, il tombe sur anyRequest().authenticated() ; or les filtres
+                        // OncePerRequestFilter (dont JwtAuthenticationFilter) ignorent par defaut
+                        // les dispatches ERROR, donc ce second passage est TOUJOURS anonyme.
+                        // Resultat : le vrai statut d'erreur etait remplace par un 401 trompeur —
+                        // un 503 « fonctionnalite desactivee » ou un 404 devenait « Token JWT
+                        // requis », y compris pour un utilisateur parfaitement authentifie.
+                        // permitAll ne divulgue rien : le corps de /error est deja neutralise par
+                        // server.error.include-message=never.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Interrupteurs de fonctionnalites : le front doit les connaitre AVANT
+                        // toute authentification, pour ne pas afficher un bouton menant a un 503.
+                        .requestMatchers(HttpMethod.GET, "/api/public/features").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
