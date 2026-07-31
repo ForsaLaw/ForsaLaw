@@ -21,11 +21,25 @@ public interface ChatGenerationClient {
      */
     void genererEnFlux(List<Message> messages, GestionnaireFlux gestionnaire);
 
+    /**
+     * Jetons consommes, tels que rapportes par le modele.
+     *
+     * <p>Uniquement disponibles dans la trame finale : le cout d'une requete n'est donc connu
+     * qu'une fois la generation terminee, jamais avant ni pendant (voir AiTokenBudgetService).</p>
+     *
+     * @param invite jetons de l'invite ({@code prompt_eval_count})
+     * @param reponse jetons generes ({@code eval_count})
+     */
+    record UsageJetons(int invite, int reponse) {
+        public static final UsageJetons INCONNU = new UsageJetons(0, 0);
+    }
+
     /** Callback de reception. Un seul de {@code surFin}/{@code surErreur} est appele, jamais les deux. */
     interface GestionnaireFlux {
         void surJeton(String delta);
 
-        void surFin();
+        /** @param usage jetons consommes ; {@link UsageJetons#INCONNU} si le modele ne les rapporte pas */
+        void surFin(UsageJetons usage);
 
         void surErreur(String messageErreur);
     }

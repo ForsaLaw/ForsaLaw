@@ -169,6 +169,7 @@
   "sanctum_placeholder": "Ask your legal question...",
   "sanctum_thinking": "The Oracle consults the ancient texts...",
   "sanctum_error": "The Oracle is momentarily unavailable: please try again in a moment.",
+  "sanctum_rate_limited": "You are going a little fast. Please wait a minute before asking another question.",
   "sanctum_you": "You",
   "auth_title": "ForsaLaw Authentication",
   "auth_subtitle": "API connected",

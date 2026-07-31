@@ -1,12 +1,12 @@
 package com.forsalaw.security;
 
 import com.forsalaw.userManagement.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,7 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -28,7 +27,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper;
     private final JwtCookieService jwtCookieService;
 
     @Override
@@ -54,15 +52,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = jwtService.extractEmail(token);
         var userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty() || !userOpt.get().isActif()) {
-            String message = "Compte desactive.";
-            if (userOpt.isPresent() && userOpt.get().isBlockedByFailedAttempts()) {
-                message = "Compte bloque apres 3 tentatives. Veuillez contacter l'administrateur.";
-            }
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType("application/json");
-            response.getWriter().write(objectMapper.writeValueAsString(
-                    Map.of("message", message)
-            ));
+            // Jeton signe valide, mais le compte n'existe plus ou est desactive/bloque : on
+            // PERIME LE COOKIE et on poursuit en anonyme, sans court-circuiter la chaine.
+            //
+            // Repondre 403 ici enfermait l'utilisateur : le filtre s'execute avant
+            // l'autorisation, donc TOUS les endpoints repondaient 403 — y compris les
+            // permitAll /api/auth/login, /api/auth/register ET /api/auth/logout. Le compte
+            // desactive ne pouvait donc ni se reconnecter, ni se deconnecter, ni s'inscrire a
+            // nouveau : seul un vidage manuel des cookies le liberait.
+            //
+            // En poursuivant en anonyme, l'acces reste bien revoque (les endpoints proteges
+            // repondent 401 via l'AuthenticationEntryPoint), mais les endpoints publics
+            // redeviennent joignables. Le motif exact (desactive / bloque apres 3 tentatives)
+            // est reporte a la tentative de connexion, ou AuthService le renvoie deja.
+            response.addHeader(HttpHeaders.SET_COOKIE, jwtCookieService.clear().toString());
+            filterChain.doFilter(request, response);
             return;
         }
 

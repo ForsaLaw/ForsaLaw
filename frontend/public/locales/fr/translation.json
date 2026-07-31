@@ -169,6 +169,7 @@
   "sanctum_placeholder": "Posez votre question juridique...",
   "sanctum_thinking": "L'Oracle consulte les anciens textes...",
   "sanctum_error": "L'Oracle est momentanement indisponible : reessayez dans un instant.",
+  "sanctum_rate_limited": "Vous allez un peu vite. Patientez une minute avant de poser une nouvelle question.",
   "sanctum_you": "Vous",
   "auth_title": "Authentification ForsaLaw",
   "auth_subtitle": "API connectee",

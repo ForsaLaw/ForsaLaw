@@ -48,7 +48,7 @@ class AiChatLiveStreamManualTest {
             }
 
             @Override
-            public void surFin() {
+            public void surFin(ChatGenerationClient.UsageJetons usage) {
                 fini.set(true);
                 latch.countDown();
             }

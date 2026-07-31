@@ -106,7 +106,7 @@ public class OllamaChatGenerationClient implements ChatGenerationClient {
                                 }
 
                                 if (noeud.path("done").asBoolean(false)) {
-                                    gestionnaire.surFin();
+                                    gestionnaire.surFin(usageDepuis(noeud));
                                     return null;
                                 }
                             }
@@ -126,5 +126,15 @@ public class OllamaChatGenerationClient implements ChatGenerationClient {
     private String texteDelta(JsonNode noeud) {
         JsonNode contenu = noeud.path("message").path("content");
         return contenu.isTextual() ? contenu.asText() : "";
+    }
+
+    /**
+     * Jetons rapportes dans la trame finale. Absents des trames intermediaires : c'est ce qui
+     * impose un decompte a posteriori du budget (voir AiTokenBudgetService).
+     */
+    private ChatGenerationClient.UsageJetons usageDepuis(JsonNode noeudFinal) {
+        int invite = noeudFinal.path("prompt_eval_count").asInt(0);
+        int reponse = noeudFinal.path("eval_count").asInt(0);
+        return new ChatGenerationClient.UsageJetons(invite, reponse);
     }
 }

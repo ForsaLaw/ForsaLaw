@@ -1,6 +1,7 @@
 package com.forsalaw.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.forsalaw.security.ratelimit.RateLimitFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final ObjectMapper objectMapper;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository;
@@ -134,7 +136,11 @@ public class SecurityConfig {
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // APRES le filtre JWT : le quota de /api/ai/** est par utilisateur, il lui faut
+                // donc un SecurityContext deja renseigne. Les endpoints d'authentification
+                // restent limites par IP, ce que cette position ne change pas.
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

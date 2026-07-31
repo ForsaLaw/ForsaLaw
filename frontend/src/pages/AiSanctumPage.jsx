@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import AiConsentModal from '../components/ai/AiConsentModal.jsx'
 import AiDisclaimerBanner from '../components/ai/AiDisclaimerBanner.jsx'
-import { aConsentiVersionCourante } from '../components/ai/aiConsent.js'
+import {
+  aConsentiVersionCourante,
+  litConsentementServeur,
+  enregistrerConsentementServeur,
+} from '../components/ai/aiConsent.js'
 import { apiFetch, parseApiError } from '../api/client.js'
 import { lireFluxSse } from '../api/sse.js'
 import '../styles/AiSanctum.css'
@@ -72,6 +76,22 @@ const AiSanctumPage = () => {
     historyEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [history])
 
+  // Le consentement faisant autorite est celui de la base : le cache local a seulement evite
+  // un affichage clignotant de la modale au premier rendu. Si le serveur repond, sa valeur
+  // ecrase le cache — y compris pour REDEMANDER un consentement que l'utilisateur croyait
+  // acquis parce qu'il figurait encore dans son navigateur.
+  useEffect(() => {
+    let annule = false
+    litConsentementServeur().then((consenti) => {
+      if (!annule && consenti !== null) {
+        setConsentementDonne(consenti)
+      }
+    })
+    return () => {
+      annule = true
+    }
+  }, [])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!userInput.trim() || isTyping || streamingActif) return
@@ -107,7 +127,12 @@ const AiSanctumPage = () => {
 
       if (!res.ok) {
         setWaitingForResponse(false)
-        setErreurAssistant(await parseApiError(res))
+        // 429 : quota de debit atteint. Le message du serveur reste la reference (il distingue
+        // le debit du budget de jetons epuise), on ne retombe sur la traduction que s'il est vide.
+        const messageServeur = await parseApiError(res)
+        setErreurAssistant(
+          res.status === 429 ? messageServeur || t('sanctum_rate_limited') : messageServeur,
+        )
         return
       }
 

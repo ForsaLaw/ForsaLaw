@@ -53,6 +53,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <!-- Limitation de debit (Bucket4j) : seau a jetons en memoire, sans Redis. Suffisant
+             tant que l'application tourne en mono-instance ; des qu'il y en a plusieurs, chaque
+             instance appliquera SON propre quota (le plafond effectif sera donc multiplie par le
+             nombre d'instances) et il faudra passer sur un backend distribue. -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+        <!-- Stockage des seaux, avec expiration automatique des entrees inactives : sans cela,
+             une ConcurrentHashMap indexee par IP grossirait indefiniment (fuite memoire). -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>

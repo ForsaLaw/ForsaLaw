@@ -1,5 +1,6 @@
 package com.forsalaw.ragManagement.chat;
 
+import com.forsalaw.ragManagement.chat.budget.AiTokenBudgetService;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository.ResultatRecherche;
 import com.forsalaw.ragManagement.search.LegalChunkSearchService;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +38,12 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AiChatServiceTest {
 
+    private static final String EMAIL = "client@forsalaw.tn";
+    private static final Long ID_USAGE = 42L;
+
     @Mock LegalChunkSearchService searchService;
     @Mock ChatGenerationClient chatGenerationClient;
+    @Mock AiTokenBudgetService budgetService;
     @Captor ArgumentCaptor<List<ChatGenerationClient.Message>> messagesCaptor;
     @Captor ArgumentCaptor<ChatGenerationClient.GestionnaireFlux> gestionnaireCaptor;
 
@@ -46,7 +51,7 @@ class AiChatServiceTest {
 
     @BeforeEach
     void preparer() {
-        service = new AiChatService(searchService, chatGenerationClient);
+        service = new AiChatService(searchService, chatGenerationClient, budgetService);
     }
 
     @Test
@@ -54,7 +59,7 @@ class AiChatServiceTest {
         SseEmitterTestHandler espion = new SseEmitterTestHandler();
         SseEmitter emitter = nouvelEmitter(espion);
 
-        service.repondreEnFlux("question confidentielle", 3, emitter);
+        service.repondreEnFlux("question confidentielle", 3, EMAIL, emitter);
 
         verify(searchService, never()).rechercher(anyString(), anyInt(), any(), any(), anyInt());
         verify(chatGenerationClient, never()).genererEnFlux(any(), any());
@@ -70,7 +75,7 @@ class AiChatServiceTest {
                 any(LocalDate.class), eq(10)))
                 .thenReturn(List.of(resultat("coc", "402", "Toutes les actions sont prescrites par quinze ans.")));
 
-        service.repondreEnFlux("Quel délai de prescription ?", 1, emitter);
+        service.repondreEnFlux("Quel délai de prescription ?", 1, EMAIL, emitter);
 
         verify(chatGenerationClient).genererEnFlux(messagesCaptor.capture(), any());
         String promptUtilisateur = messagesCaptor.getValue().get(1).content();
@@ -89,8 +94,9 @@ class AiChatServiceTest {
         SseEmitter emitter = nouvelEmitter(espion);
 
         when(searchService.rechercher(anyString(), anyInt(), any(), any(), anyInt())).thenReturn(List.of());
+        when(budgetService.reserver(EMAIL)).thenReturn(ID_USAGE);
 
-        service.repondreEnFlux("question", 1, emitter);
+        service.repondreEnFlux("question", 1, EMAIL, emitter);
 
         verify(chatGenerationClient).genererEnFlux(any(), gestionnaireCaptor.capture());
         var gestionnaire = gestionnaireCaptor.getValue();
@@ -98,7 +104,10 @@ class AiChatServiceTest {
         gestionnaire.surJeton("Bonjour");
         gestionnaire.surJeton(" le monde.");
         gestionnaire.surJeton("\nSuite.");
-        gestionnaire.surFin();
+        gestionnaire.surFin(new ChatGenerationClient.UsageJetons(120, 80));
+
+        // Le depot est ajuste au reel a la fin du flux.
+        verify(budgetService).regler(ID_USAGE, 120, 80);
 
         // Les jetons partent encodes en JSON : c'est ce qui preserve l'espace de tete et le saut
         // de ligne. Sans cet encodage, SSE mangeait l'espace initial de " le monde." (le client
@@ -120,13 +129,50 @@ class AiChatServiceTest {
 
         when(searchService.rechercher(anyString(), anyInt(), any(), any(), anyInt())).thenReturn(List.of());
 
-        service.repondreEnFlux("question", 1, emitter);
+        service.repondreEnFlux("question", 1, EMAIL, emitter);
 
         verify(chatGenerationClient).genererEnFlux(any(), gestionnaireCaptor.capture());
         gestionnaireCaptor.getValue().surErreur("reponse illisible, flux interrompu");
 
         assertThat(espion.texteEnvoye()).contains("illisible");
         assertThat(espion.estComplete()).isTrue();
+    }
+
+    @Test
+    void budgetEpuise_refuseAvantToutAppelAuModele() {
+        SseEmitterTestHandler espion = new SseEmitterTestHandler();
+        SseEmitter emitter = nouvelEmitter(espion);
+
+        when(budgetService.reserver(EMAIL)).thenThrow(
+                new AiTokenBudgetService.BudgetEpuiseException("Votre quota quotidien est epuise."));
+
+        service.repondreEnFlux("question", 1, EMAIL, emitter);
+
+        // Ni recherche ni generation : le refus doit intervenir AVANT de depenser quoi que ce soit.
+        verify(searchService, never()).rechercher(anyString(), anyInt(), any(), any(), anyInt());
+        verify(chatGenerationClient, never()).genererEnFlux(any(), any());
+        assertThat(espion.texteEnvoye()).contains("quota quotidien");
+        assertThat(espion.estComplete()).isTrue();
+    }
+
+    @Test
+    void fluxAbandonne_conserveLeDepot() {
+        SseEmitterTestHandler espion = new SseEmitterTestHandler();
+        SseEmitter emitter = nouvelEmitter(espion);
+
+        when(searchService.rechercher(anyString(), anyInt(), any(), any(), anyInt())).thenReturn(List.of());
+
+        service.repondreEnFlux("question", 1, EMAIL, emitter);
+
+        verify(chatGenerationClient).genererEnFlux(any(), gestionnaireCaptor.capture());
+        var gestionnaire = gestionnaireCaptor.getValue();
+
+        // Client deconnecte : des jetons arrivent, mais la trame "done" ne vient JAMAIS.
+        gestionnaire.surJeton("debut de reponse");
+
+        // Le depot n'est donc jamais ajuste : il reste acquis. C'est precisement ce qui rend une
+        // boucle d'abandon couteuse — sans cela, elle consommerait du calcul sans etre decomptee.
+        verify(budgetService, never()).regler(any(), anyInt(), anyInt());
     }
 
     private ResultatRecherche resultat(String codeName, String articleReference, String content) {

@@ -8,6 +8,9 @@ import com.forsalaw.security.JwtCookieService;
 import com.forsalaw.security.JwtService;
 import com.forsalaw.security.OAuth2AuthenticationSuccessHandler;
 import com.forsalaw.security.SecurityConfig;
+import com.forsalaw.security.ratelimit.RateLimitBucketRegistry;
+import com.forsalaw.security.ratelimit.RateLimitFilter;
+import com.forsalaw.security.ratelimit.RateLimitProperties;
 import com.forsalaw.userManagement.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +33,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SecurityConfig.class,
         JwtAuthenticationFilter.class,
         JwtCookieService.class,
-        HttpCookieOAuth2AuthorizationRequestRepository.class
+        HttpCookieOAuth2AuthorizationRequestRepository.class,
+        // SecurityConfig monte desormais le filtre de limitation de debit : sans ces trois
+        // beans, le contexte de ce test tranche ne demarre plus.
+        RateLimitFilter.class,
+        RateLimitProperties.class,
+        RateLimitBucketRegistry.class
 })
 @TestPropertySource(properties = {
         "forsalaw.cors.allowed-origins=http://localhost:3000",
