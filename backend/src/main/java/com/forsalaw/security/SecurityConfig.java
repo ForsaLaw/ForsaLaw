@@ -124,6 +124,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/documents/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/documents/public/verify").permitAll()
                         .requestMatchers("/api/documents/**").authenticated()
+                        // SOS : le depot d'un signalement et son suivi sont OUVERTS. Une
+                        // arrestation est signalee par un proche, souvent depuis un telephone qui
+                        // n'est pas celui du titulaire du compte ; imposer une inscription a cet
+                        // instant ferait perdre le seul moment ou l'intervention compte.
+                        // /mine est place AVANT le permitAll, sinon il serait absorbe par lui.
+                        .requestMatchers(HttpMethod.GET, "/api/sos/arrest/mine").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/sos/arrest").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/sos/arrest/*").permitAll()
                         .requestMatchers("/api/ai/**").authenticated()
                         .requestMatchers("/api/admin/affaires/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/whatsapp/**").hasRole("ADMIN")

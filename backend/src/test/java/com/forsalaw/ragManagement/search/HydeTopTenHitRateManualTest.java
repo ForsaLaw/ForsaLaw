@@ -51,7 +51,7 @@ class HydeTopTenHitRateManualTest {
         EmbeddingClient embeddingClient =
                 new TeiEmbeddingClient("http://localhost:8092", 1024, 16, "BAAI/bge-m3", 60);
         HydeQueryRewriter hydeQueryRewriter =
-                new OllamaHydeQueryRewriter("http://localhost:11434", "qwen2.5:3b-instruct", 15);
+                new OllamaHydeQueryRewriter(new com.fasterxml.jackson.databind.ObjectMapper(), "http://localhost:11434", "qwen2.5:3b-instruct", 15);
 
         rechercheAvecHyde = new LegalChunkSearchService(embeddingClient, hydeQueryRewriter, chunkRepository);
         rechercheSansHyde = new LegalChunkSearchService(embeddingClient, new NoOpHydeQueryRewriter(), chunkRepository);

@@ -1,7 +1,9 @@
 package com.forsalaw.ragManagement.chat;
 
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.forsalaw.avocatManagement.entity.DomaineJuridique;
 import com.forsalaw.ragManagement.chat.budget.AiTokenBudgetService;
+import com.forsalaw.ragManagement.chat.routing.DomaineClassifier;
 import com.forsalaw.ragManagement.ingestion.LegalDocumentIngestionService;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository.ResultatRecherche;
 import com.forsalaw.ragManagement.search.LegalChunkSearchService;
@@ -13,6 +15,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Orchestration de {@code /api/ai/chat} : recherche (avec HyDE, deja integre a
@@ -31,9 +39,17 @@ public class AiChatService {
 
     private static final int NOMBRE_CHUNKS = 10;
 
+    /** Court : la classification a demarre avant la generation, elle doit deja etre terminee. */
+    private static final long ATTENTE_MAX_DOMAINE_MS = 1500;
+
     private final LegalChunkSearchService searchService;
     private final ChatGenerationClient chatGenerationClient;
     private final AiTokenBudgetService budgetService;
+    private final DomaineClassifier domaineClassifier;
+    /** Type {@link Executor} et non ExecutorService : le cycle de vie du pool appartient a la
+     *  configuration, ce service ne fait que soumettre — et un test peut ainsi injecter un
+     *  executeur direct sans monter de pool. */
+    private final Executor routingExecutor;
 
     /**
      * Consignes de citation stricte : le modele ne doit repondre qu'a partir des extraits
@@ -77,6 +93,18 @@ public class AiChatService {
             return;
         }
 
+        // Classification lancee EN PARALLELE de la recherche et de la generation, jamais avant.
+        // En serie, elle ajouterait son propre aller-retour au delai avant le premier jeton, qui
+        // est deja la partie la plus visible de l'attente. Lancee ici, elle se deroule pendant la
+        // recherche puis la generation et est terminee depuis longtemps quand on la consulte, a
+        // la fin du flux : le cout percu est nul.
+        CompletableFuture<Optional<DomaineJuridique>> domaineFutur =
+                CompletableFuture.supplyAsync(() -> domaineClassifier.classer(question), routingExecutor)
+                        .exceptionally(e -> {
+                            log.warn("Routage : classification en echec, aucune recommandation.", e);
+                            return Optional.empty();
+                        });
+
         List<ResultatRecherche> resultats;
         try {
             resultats = searchService.rechercher(question, tier, null, LocalDate.now(), NOMBRE_CHUNKS);
@@ -111,6 +139,7 @@ public class AiChatService {
                 // trame, ce code n'est jamais atteint et le depot reste acquis : c'est ce qui
                 // rend une boucle d'abandon couteuse.
                 budgetService.regler(idUsage, usage.invite(), usage.reponse());
+                envoyerDomaineSiConnu(emitter, domaineFutur);
                 emitter.complete();
             }
 
@@ -134,6 +163,40 @@ public class AiChatService {
      */
     private static String encoderJeton(String delta) {
         return '"' + new String(JsonStringEncoder.getInstance().quoteAsString(delta)) + '"';
+    }
+
+    /**
+     * Emet l'evenement {@code domaine} juste avant la fermeture du flux, si la classification a
+     * abouti.
+     *
+     * <p>Envoye APRES le dernier jeton et depuis le meme thread : un envoi concurrent depuis le
+     * thread de classification pourrait s'entrelacer avec les jetons et corrompre les trames SSE.
+     * L'attente est bornee et courte — la classification a demarre bien avant la generation,
+     * elle est normalement finie ; si elle ne l'est pas, la reponse part sans recommandation
+     * plutot que de faire patienter l'utilisateur pour un simple complement.</p>
+     */
+    private void envoyerDomaineSiConnu(SseEmitter emitter,
+                                       CompletableFuture<Optional<DomaineJuridique>> domaineFutur) {
+        try {
+            Optional<DomaineJuridique> domaine =
+                    domaineFutur.get(ATTENTE_MAX_DOMAINE_MS, TimeUnit.MILLISECONDS);
+            if (domaine.isEmpty()) {
+                return;
+            }
+            DomaineJuridique d = domaine.get();
+            emitter.send(SseEmitter.event().name("domaine").data(
+                    "{\"code\":\"" + d.name() + "\",\"libelle\":\"" + echapper(d.getLibelle()) + "\"}"));
+        } catch (TimeoutException e) {
+            log.debug("Routage : classification non terminee a la fin du flux, aucune recommandation.");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | IOException e) {
+            log.debug("Routage : envoi du domaine impossible ({}).", e.toString());
+        }
+    }
+
+    private static String echapper(String texte) {
+        return new String(JsonStringEncoder.getInstance().quoteAsString(texte));
     }
 
     private void envoyerErreurEtFermer(SseEmitter emitter, String messageErreur) {

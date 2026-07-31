@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,6 +18,26 @@ public interface AvocatRepository extends JpaRepository<Avocat, String> {
     Optional<Avocat> findByUserId(String userId);
 
     boolean existsByUserId(String userId);
+
+    /**
+     * Avocats actifs dont la specialite releve d'un domaine, les mieux notes d'abord.
+     *
+     * <p>Le filtre porte sur une LISTE de specialites, et non sur un domaine : le domaine
+     * n'existe pas en colonne, il est porte par l'enum {@code SpecialiteJuridique}. L'appelant
+     * developpe donc le domaine en ses specialites (voir
+     * {@code AvocatService.trouverParDomaine}), ce qui laisse la requete sur un simple IN
+     * indexable plutot qu'un calcul par ligne.</p>
+     *
+     * <p>Tri par note puis par nombre de dossiers : a note egale (fréquent quand peu d'avis ont
+     * ete deposes), l'experience reelle departage plutot qu'un ordre arbitraire.</p>
+     */
+    @Query("SELECT a FROM Avocat a JOIN FETCH a.user "
+            + "WHERE a.actif = true AND a.specialite IN :specialites "
+            + "ORDER BY a.verifie DESC, a.noteMoyenne DESC, a.totalDossiers DESC")
+    List<Avocat> findActifsParSpecialites(
+            @Param("specialites") List<SpecialiteJuridique> specialites,
+            Pageable pageable
+    );
 
     boolean existsByNumeroCarteProfessionnelleIgnoreCase(String numeroCarteProfessionnelle);
 

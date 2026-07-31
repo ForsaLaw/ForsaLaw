@@ -351,3 +351,101 @@
   opacity: 0.6;
   text-align: right;
 }
+
+/* ─── Carte de recommandation d'avocats ───────────────────────────────────── */
+/* Registre visuel volontairement plus sobre que la boite de dialogue : c'est un
+   complement a la reponse, il ne doit pas rivaliser avec elle. */
+
+.avocats-reco {
+  position: relative;
+  z-index: 10;
+  background: rgba(15, 15, 15, 0.95);
+  border: 3px solid var(--black);
+  border-left: 6px solid var(--gold);
+  box-shadow: 6px 6px 0 var(--black);
+  padding: 1.1rem 1.4rem;
+  backdrop-filter: blur(10px);
+}
+
+.avocats-reco-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.avocats-reco-titre {
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.avocats-reco-domaine {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.avocats-reco-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.avocats-reco-item {
+  border-left: 3px solid rgba(212, 175, 55, 0.45);
+  padding-left: 0.75rem;
+}
+
+.avocats-reco-nom {
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.avocats-reco-verifie {
+  color: #2ecc71;
+  margin-left: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.avocats-reco-meta {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.1rem;
+}
+
+.avocats-reco-vide {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+}
+
+.avocats-reco-lien {
+  margin-top: 0.9rem;
+  background: transparent;
+  border: 2px solid var(--gold);
+  color: var(--gold);
+  padding: 0.45rem 1rem;
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.avocats-reco-lien:hover {
+  background: var(--gold);
+  color: var(--black);
+}

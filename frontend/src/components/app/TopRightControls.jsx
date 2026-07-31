@@ -1,3 +1,5 @@
+import SosButton from '../sos/SosButton.jsx'
+
 export default function TopRightControls({
   isInboxRoute,
   isAuthenticated,
@@ -14,6 +16,9 @@ export default function TopRightControls({
 
   return (
     <div className="top-right-controls">
+      {/* Place en premier et affiche quel que soit l'etat de connexion : une arrestation est
+          signalee par un proche, presque jamais par le titulaire d'un compte. */}
+      <SosButton />
       {isAuthenticated ? (
         <>
           {user?.roleUser === 'client' ? (

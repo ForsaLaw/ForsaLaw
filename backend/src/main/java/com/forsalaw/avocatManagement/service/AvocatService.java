@@ -2,6 +2,7 @@ package com.forsalaw.avocatManagement.service;
 
 import com.forsalaw.avocatManagement.entity.Avocat;
 import com.forsalaw.avocatManagement.entity.AvocatVerificationStatus;
+import com.forsalaw.avocatManagement.entity.DomaineJuridique;
 import com.forsalaw.avocatManagement.entity.SpecialiteJuridique;
 import com.forsalaw.avocatManagement.model.*;
 import com.forsalaw.avocatManagement.repository.AvocatRepository;
@@ -12,9 +13,13 @@ import com.forsalaw.userManagement.service.UserService;
 import com.forsalaw.userManagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -196,6 +201,32 @@ public class AvocatService {
                 .orElseThrow(() -> new IllegalArgumentException("Aucun profil avocat associé à cet email."));
         avocat.setActif(true);
         avocatRepository.save(avocat);
+    }
+
+    /**
+     * Avocats actifs exercant dans un domaine, les mieux places d'abord.
+     *
+     * <p>Le domaine est developpe en ses specialites AVANT la requete : {@code Avocat} porte une
+     * specialite, jamais un domaine — celui-ci n'est qu'un attribut de l'enum, absent de la base.
+     * Filtrer « par domaine » en SQL est donc impossible sans cette traduction.</p>
+     *
+     * <p>Un domaine sans aucune specialite rattachee renvoie une liste vide sans interroger la
+     * base : un {@code IN ()} vide est un predicat invalide sur certains moteurs.</p>
+     */
+    @Transactional(readOnly = true)
+    public List<AvocatDTO> trouverParDomaine(DomaineJuridique domaine, int limite) {
+        List<SpecialiteJuridique> specialites = Arrays.stream(SpecialiteJuridique.values())
+                .filter(s -> s.getDomaine() == domaine)
+                .toList();
+
+        if (specialites.isEmpty()) {
+            return List.of();
+        }
+        return avocatRepository
+                .findActifsParSpecialites(specialites, PageRequest.of(0, limite))
+                .stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     private AvocatDTO toDTO(Avocat a) {

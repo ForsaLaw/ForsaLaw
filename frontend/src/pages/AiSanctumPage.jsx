@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import AiConsentModal from '../components/ai/AiConsentModal.jsx'
 import AiDisclaimerBanner from '../components/ai/AiDisclaimerBanner.jsx'
+import AvocatsRecommandesCard from '../components/ai/AvocatsRecommandesCard.jsx'
 import {
   aConsentiVersionCourante,
   litConsentementServeur,
@@ -66,6 +67,7 @@ const AiSanctumPage = () => {
   const [reponseEnCours, setReponseEnCours] = useState('')
   const [streamingActif, setStreamingActif] = useState(false)
   const [erreurAssistant, setErreurAssistant] = useState(null)
+  const [domaineDetecte, setDomaineDetecte] = useState(null)
 
   const [userInput, setUserInput] = useState('')
   const [waitingForResponse, setWaitingForResponse] = useState(false)
@@ -111,6 +113,9 @@ const AiSanctumPage = () => {
     setPhaseIntroTerminee(true)
     setReponseEnCours('')
     setErreurAssistant(null)
+    // La recommandation precedente porte sur l'ancienne question : la retirer AVANT la nouvelle
+    // reponse, sinon elle resterait affichee sous un contenu qu'elle ne concerne plus.
+    setDomaineDetecte(null)
     setWaitingForResponse(true)
 
     // Pas de signal d'AbortController ici : combine a credentials:'include' sur cet
@@ -153,6 +158,14 @@ const AiSanctumPage = () => {
             morceau = data
           }
           setReponseEnCours((prev) => prev + morceau)
+        } else if (event === 'domaine') {
+          // Emis juste avant la fermeture du flux : la carte de recommandation apparait sous la
+          // reponse, sans jamais avoir retarde l'affichage des jetons.
+          try {
+            setDomaineDetecte(JSON.parse(data))
+          } catch {
+            // Domaine illisible : on s'en passe, la reponse elle-meme est intacte.
+          }
         } else if (event === 'erreur') {
           setWaitingForResponse(false)
           setStreamingActif(false)
@@ -265,6 +278,13 @@ const AiSanctumPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Sous la reponse, jamais a la place : la recommandation complete l'information
+            juridique, elle ne s'y substitue pas. Masquee en cas d'erreur, ou orienter vers des
+            avocats sans avoir repondu serait percu comme une simple mise en relation payante. */}
+        {domaineDetecte && !erreurAssistant && (
+          <AvocatsRecommandesCard domaine={domaineDetecte} />
+        )}
 
         <form className="sanctum-input-container" style={{ border: '4px solid var(--black)', boxShadow: '12px 12px 0px 0px var(--black)', background: 'var(--white)', padding: 0 }} onSubmit={handleSubmit}>
           <input

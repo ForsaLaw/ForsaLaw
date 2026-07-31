@@ -1,0 +1,236 @@
+/* ============================================================
+   ForsaLaw — SOS Arrestation
+   Registre visuel DELIBEREMENT distinct du reste de la plateforme :
+   rouge d'alerte au lieu du doré, angles vifs, contraste maximal.
+   L'utilisateur doit reperer ce bouton sans le chercher, et comprendre
+   au premier coup d'oeil qu'il quitte le parcours ordinaire.
+   ============================================================ */
+
+:root {
+  --sos-rouge: #c0121f;
+  --sos-rouge-sombre: #7d0b14;
+  --sos-noir: #0d0d0d;
+}
+
+/* ── Bouton d'alerte ───────────────────────────────────────── */
+.sos-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--sos-rouge);
+  color: #fff;
+  border: 3px solid var(--sos-noir);
+  padding: 0.55rem 1.1rem;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--sos-noir);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+}
+
+.sos-trigger:hover {
+  background: var(--sos-rouge-sombre);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--sos-noir);
+}
+
+.sos-trigger:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--sos-noir);
+}
+
+/* Pastille clignotante : signale l'urgence sans animer tout le bouton, ce qui
+   rendrait la lecture du libelle difficile. */
+.sos-trigger-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  animation: sos-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes sos-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* Respect d'une preference systeme : ne jamais imposer un clignotement a qui
+   l'a explicitement desactive (gene vestibulaire, troubles de l'attention). */
+@media (prefers-reduced-motion: reduce) {
+  .sos-trigger-pulse { animation: none; }
+  .sos-progress span { animation: none; width: 100%; }
+}
+
+/* ── Modale ────────────────────────────────────────────────── */
+.sos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.sos-modal {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #fff;
+  color: var(--sos-noir);
+  border: 4px solid var(--sos-noir);
+  box-shadow: 12px 12px 0 var(--sos-rouge);
+}
+
+.sos-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--sos-rouge);
+  color: #fff;
+  border-bottom: 4px solid var(--sos-noir);
+}
+
+.sos-modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sos-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+
+.sos-form,
+.sos-confirmation {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sos-lead {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.sos-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+
+.sos-input {
+  border: 3px solid var(--sos-noir);
+  padding: 0.65rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  margin-bottom: 0.9rem;
+  outline: none;
+  background: #fff;
+  color: var(--sos-noir);
+}
+
+.sos-input:focus {
+  border-color: var(--sos-rouge);
+  box-shadow: 3px 3px 0 var(--sos-rouge);
+}
+
+.sos-textarea { resize: vertical; }
+
+.sos-submit {
+  background: var(--sos-rouge);
+  color: #fff;
+  border: 3px solid var(--sos-noir);
+  padding: 0.85rem 1rem;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 5px 5px 0 var(--sos-noir);
+  margin-top: 0.3rem;
+}
+
+.sos-submit:hover:not(:disabled) { background: var(--sos-rouge-sombre); }
+
+.sos-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sos-erreur {
+  background: #ffe8e8;
+  border: 3px solid var(--sos-rouge);
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.sos-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  opacity: 0.75;
+}
+
+/* ── Confirmation et suivi ─────────────────────────────────── */
+.sos-confirmation-ref {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.sos-confirmation-etat {
+  margin: 0 0 0.9rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--sos-rouge);
+}
+
+.sos-progress {
+  height: 8px;
+  background: #eee;
+  border: 2px solid var(--sos-noir);
+  overflow: hidden;
+}
+
+.sos-progress span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--sos-rouge);
+  animation: sos-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes sos-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@media (max-width: 640px) {
+  .sos-trigger {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.72rem;
+  }
+  .sos-modal { max-width: 100%; }
+}
