@@ -42,6 +42,17 @@ public class AdminSeeder implements ApplicationListener<ApplicationReadyEvent> {
     @Value("${admin.seed.password:}")
     private String seedPassword;
 
+    /**
+     * Exige qu'un ADMIN existe ou puisse etre amorce. A mettre a {@code true} en production :
+     * sans cela, un deploiement sans admin demarre normalement et ne se decouvre inutilisable
+     * qu'au moment ou quelqu'un tente d'administrer.
+     */
+    @Value("${admin.seed.required:false}")
+    private boolean seedRequired;
+
+    /** Le compte amorce detient tous les droits : la longueur minimale n'est pas negociable. */
+    private static final int LONGUEUR_MIN_MOT_DE_PASSE = 16;
+
     @Override
     @Transactional
     public void onApplicationEvent(ApplicationReadyEvent event) {
@@ -52,8 +63,26 @@ public class AdminSeeder implements ApplicationListener<ApplicationReadyEvent> {
 
         String email = seedEmail == null ? "" : seedEmail.trim().toLowerCase();
         if (email.isEmpty() || seedPassword == null || seedPassword.isEmpty()) {
+            // En production, une base SANS admin et SANS amorcage est un deploiement inutilisable :
+            // plus personne ne peut verifier un avocat ni moderer quoi que ce soit, et le seul
+            // recours est une intervention manuelle en base. Mieux vaut refuser de demarrer.
+            if (seedRequired) {
+                throw new IllegalStateException(
+                        "Aucun compte ADMIN n'existe et ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD ne sont "
+                                + "pas definis, alors que ADMIN_SEED_REQUIRED=true. Demarrage interrompu.");
+            }
             log.warn("No admin user exists and seed credentials are not configured. Skipping admin seed.");
             return;
+        }
+
+        // Un mot de passe d'amorcage faible est pire qu'aucun amorcage : le compte cree detient
+        // tous les droits et son adresse est previsible. Le refus est franc, jamais un repli
+        // silencieux sur une valeur de remplacement.
+        if (seedPassword.length() < LONGUEUR_MIN_MOT_DE_PASSE) {
+            throw new IllegalStateException(
+                    "ADMIN_SEED_PASSWORD fait moins de " + LONGUEUR_MIN_MOT_DE_PASSE
+                            + " caracteres. Le compte amorce detient tous les droits : "
+                            + "utilisez un secret long et aleatoire. Demarrage interrompu.");
         }
 
         // Garde-fou : ne pas entrer en collision avec un compte non-admin existant (email unique).

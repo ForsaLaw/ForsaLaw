@@ -75,6 +75,12 @@ export default function AvocatsRecommandesCard({ domaine }) {
         </ul>
       )}
 
+      {/* Le domaine vient d'un modele 3B dont l'erreur a ete constatee (une question de
+          licenciement classee en droit des affaires). L'avertissement accompagne donc la liste
+          elle-meme, et non le seul disclaimer general en haut de page : c'est ici que
+          l'utilisateur s'apprete a contacter quelqu'un sur la foi de ce classement. */}
+      <p className="avocats-reco-avertissement">{t('sanctum_lawyers_disclaimer')}</p>
+
       <button type="button" className="avocats-reco-lien" onClick={() => navigate('/lawyers')}>
         {t('sanctum_lawyers_see_all')}
       </button>
