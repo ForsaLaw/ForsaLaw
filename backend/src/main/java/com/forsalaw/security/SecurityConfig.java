@@ -154,6 +154,20 @@ public class SecurityConfig {
                         .requestMatchers("/api/messenger/**").hasRole("CLIENT")
                         .requestMatchers("/api/audit-logs/**").authenticated()
                         .requestMatchers("/api/avocats/me", "/api/avocats/me/**").hasAnyRole("CLIENT", "AVOCAT")
+                        // Filet pour TOUTE route d'administration non listee ci-dessus.
+                        //
+                        // Ce n'est pas un correctif : les controleurs concernes (avocats, users,
+                        // reclamations) portent deja @PreAuthorize("hasRole('ADMIN')") au niveau
+                        // de la classe, et un client authentifie recoit bien 403 — verifie.
+                        // C'est une defense en profondeur, pour deux raisons precises :
+                        //   - WhatsAppController n'a AUCUN @PreAuthorize et ne tient que par son
+                        //     matcher ; le supprimer par megarde l'ouvrirait a tout compte connecte ;
+                        //   - un futur controleur /api/admin/** cree sans @PreAuthorize ET sans
+                        //     matcher tomberait sur anyRequest().authenticated(), donc accessible
+                        //     a n'importe quel client. Ce filet rend cet oubli impossible.
+                        // Place ici, apres les regles specifiques : il ne change rien pour les
+                        // routes deja couvertes, il ne fait que fermer le reste.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
