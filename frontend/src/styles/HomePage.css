@@ -277,6 +277,18 @@
 
 /* Responsive: stack vertically on mobile */
 @media (max-width: 900px) {
+  /* Les deux pilastres monumentaux mesurent 120px CHACUN, soit 240px preleves sur la
+     largeur : sur un telephone de 375px il ne reste que 135px pour le contenu, qui se
+     retrouve ecrase en colonne d'un ou deux mots. Ils sont purement decoratifs
+     (pointer-events:none, z-index negatif) — les retirer sous 900px ne coute aucune
+     information, alors que les conserver rend la page inutilisable.
+     L'encadrement architectural reste intact sur les ecrans larges, ou il a la place
+     d'exister. */
+  .home-lower-realm::before,
+  .home-lower-realm::after {
+    display: none;
+  }
+
   .home-atrium-inner {
     flex-direction: column;
     padding: 5rem 1.5rem 5rem;

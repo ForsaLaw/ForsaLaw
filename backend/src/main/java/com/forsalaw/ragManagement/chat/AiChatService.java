@@ -59,17 +59,33 @@ public class AiChatService {
      * aval et le disclaimer permanent cote interface (AiDisclaimerBanner).
      */
     private static final String CONSIGNES = """
-            Tu es un assistant d'information juridique tunisien. Reponds a la question de \
-            l'utilisateur UNIQUEMENT a partir des extraits ci-dessous.
+            Tu es un assistant d'information juridique tunisien. Tu reponds UNIQUEMENT a partir \
+            des extraits fournis.
 
-            Regles strictes :
-            - Cite les extraits par leur numero entre crochets, ex. [1], [2].
-            - Si aucun extrait ne repond a la question, dis-le explicitement plutot que \
-            d'inventer une reponse ou une reference.
-            - N'invente JAMAIS de numero d'article, de code ou de citation absent des extraits.
-            - Reponds dans la langue de la question.
-            - Rappelle que tu ne remplaces pas l'avis d'un avocat inscrit au barreau.
-            """;
+            REGLE ABSOLUE : chaque affirmation juridique se termine par le numero de l'extrait \
+            qui la fonde, entre crochets. Une phrase juridique sans [n] est une faute.
+
+            Format impose :
+            - 3 a 5 phrases MAXIMUM. Pas d'introduction, pas de plan, pas de titres en gras.
+            - Chaque affirmation porte sa source : [1], [2]... Plusieurs sources : [1][3].
+            - Derniere ligne, exactement : Ceci est une information generale, pas un conseil \
+            juridique : consultez un avocat inscrit au barreau.
+
+            Exemple de reponse ATTENDUE :
+            La prescription des actions civiles est de quinze ans [1]. Ce delai court a compter \
+            du jour ou l'obligation est devenue exigible [2]. Des delais plus courts existent \
+            pour certaines actions particulieres [1].
+            Ceci est une information generale, pas un conseil juridique : consultez un avocat \
+            inscrit au barreau.
+
+            Interdits :
+            - Inventer un numero d'article, un code ou une reference absent des extraits.
+            - Citer un extrait qui ne traite pas reellement de la question.
+            - Repondre sur des connaissances generales : si les extraits ne repondent pas, \
+            ecris-le franchement en une phrase, puis la ligne finale.
+
+            Reponds dans la langue de la question. Sois bref : une reponse courte et sourcee \
+            vaut mieux qu'un expose. RAPPEL : aucune phrase juridique sans [n].""";
 
     /**
      * @param emailUtilisateur identite capturee sur le thread de la requete par le controleur.
@@ -121,11 +137,22 @@ public class AiChatService {
                 new ChatGenerationClient.Message("user", prompt)
         );
 
+        // Filtre des citations, par requete (il porte un etat de tampon). Le nombre d'extrait
+        // REELLEMENT fournis au modele borne les numeros acceptables : une citation [7] sur
+        // trois extraits renvoie a une source qui n'a jamais existe.
+        AssainisseurCitations assainisseur = new AssainisseurCitations(resultats.size());
+
         chatGenerationClient.genererEnFlux(messages, new ChatGenerationClient.GestionnaireFlux() {
             @Override
             public void surJeton(String delta) {
+                // Le filtre peut ne rien restituer pour ce fragment : il retient la sortie tant
+                // qu'un crochet ouvert n'est pas tranche.
+                assainisseur.accepter(delta, this::envoyer);
+            }
+
+            private void envoyer(String texte) {
                 try {
-                    emitter.send(SseEmitter.event().name("jeton").data(encoderJeton(delta)));
+                    emitter.send(SseEmitter.event().name("jeton").data(encoderJeton(texte)));
                 } catch (IOException e) {
                     // Le client a ferme la connexion (onglet ferme, navigation) : rien de plus
                     // a faire, l'emitter se completera de lui-meme via son propre listener.
@@ -135,6 +162,9 @@ public class AiChatService {
 
             @Override
             public void surFin(ChatGenerationClient.UsageJetons usage) {
+                // Vide le tampon AVANT de cloturer : une citation encore retenue serait
+                // autrement perdue avec la fin du flux.
+                assainisseur.terminer(this::envoyer);
                 // Ajustement du depot au cout reel. Si le client s'est deconnecte avant cette
                 // trame, ce code n'est jamais atteint et le depot reste acquis : c'est ce qui
                 // rend une boucle d'abandon couteuse.
