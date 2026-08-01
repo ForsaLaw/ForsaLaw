@@ -34,6 +34,7 @@ const InboxPage = lazyRoute(() => import('./pages/InboxPage'))
 const AuthPage = lazyRoute(() => import('./pages/AuthPage'))
 const GoogleOAuthCallbackPage = lazyRoute(() => import('./pages/GoogleOAuthCallbackPage'))
 const AppointmentBookingPage = lazyRoute(() => import('./pages/AppointmentBookingPage'))
+const LegalPage = lazyRoute(() => import('./pages/LegalPage'))
 const OnlineMeetingRoomPage = lazyRoute(() => import('./pages/OnlineMeetingRoomPage'))
 
 function App() {
@@ -153,6 +154,7 @@ function App() {
               OnlineMeetingRoomPage={OnlineMeetingRoomPage}
               AuthPage={AuthPage}
               GoogleOAuthCallbackPage={GoogleOAuthCallbackPage}
+              LegalPage={LegalPage}
               onNavigateByPageKey={navigateToPageKey}
             />
           </Suspense>

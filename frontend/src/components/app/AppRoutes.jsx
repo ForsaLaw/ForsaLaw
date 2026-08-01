@@ -18,6 +18,7 @@ export default function AppRoutes({
   OnlineMeetingRoomPage,
   AuthPage,
   GoogleOAuthCallbackPage,
+  LegalPage,
   onNavigateByPageKey,
 }) {
   return (
@@ -45,6 +46,10 @@ export default function AppRoutes({
           <Route path="/rendezvous/:idRendezVous/online-room" element={<OnlineMeetingRoomPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/google/callback" element={<GoogleOAuthCallbackPage />} />
+          {/* Rubrique par defaut si l'URL n'en nomme aucune : /legal doit rester valide,
+              c'est la forme qui sera collee dans un e-mail ou un pied de page. */}
+          <Route path="/legal" element={<LegalPage />} />
+          <Route path="/legal/:rubrique" element={<LegalPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>

@@ -284,6 +284,11 @@ export function useInboxPageData({
     setProposeComment,
     rdvBusy,
     rdvMsg,
+    // Expose le setter, que InboxPage appelait deja sans l'avoir : ouvrir puis refermer le
+    // panneau « Proposer un RDV » levait une ReferenceError (setRdvMsg is not defined) et
+    // laissait le message de la tentative precedente affiche. Defaut trouve par le linter
+    // des sa premiere execution sur le depot.
+    setRdvMsg,
     endRef,
     textareaRef,
     fileInputRef,

@@ -43,6 +43,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      # Le linter a trouve, des sa premiere execution, un setter appele sans exister
+      # (setRdvMsg dans InboxPage) : une ReferenceError qui n'attendait qu'un clic d'avocat.
+      # Bloquant sur les erreurs, tolerant sur les avertissements (imports inutilises).
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
       - name: Build
         run: npm run build
 

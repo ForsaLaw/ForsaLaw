@@ -37,6 +37,7 @@ export default function InboxPage() {
     setProposeComment,
     rdvBusy,
     rdvMsg,
+    setRdvMsg,
     endRef,
     textareaRef,
     fileInputRef,

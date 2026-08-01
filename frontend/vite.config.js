@@ -37,6 +37,18 @@ export default defineConfig({
       },
     }
   },
+  // Vitest partage la resolution et les alias de Vite : les modules se comportent au test
+  // comme au build, ce qu'une configuration Jest separee ne garantit pas.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    // Les fichiers de test vivent a cote du code qu'ils couvrent.
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/api/**', 'src/utils/**'],
+    },
+  },
   build: {
     rollupOptions: {
       output: {
