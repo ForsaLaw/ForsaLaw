@@ -55,4 +55,34 @@ class OllamaDomaineClassifierTest {
         assertThat(classifier.interpreter(null)).isEmpty();
         assertThat(classifier.interpreter("   ")).isEmpty();
     }
+@Test
+    void lesConsignes_desambiguisentTravailEtAffaires() {
+        // Defaut MESURE : « obligations de l employeur en cas de licenciement » avait ete classe
+        // en DROIT_DES_AFFAIRES. La consigne doit nommer explicitement ce piege, sans quoi le
+        // modele suit l association « employeur => entreprise => affaires ».
+        String consignes = OllamaDomaineClassifier.consignesPour(DomaineJuridique.values());
+
+        assertThat(consignes)
+                .contains("Licenciement")
+                .contains("DROIT_TRAVAIL_ET_SOCIAL")
+                .contains("JAMAIS DROIT_DES_AFFAIRES");
+    }
+
+    @Test
+    void lesConsignes_oriententLaFamilleVersDroitPrive() {
+        // Il n existe PAS de domaine « famille » : sans cette precision, le modele invente
+        // DROIT_FAMILLE, qui est ensuite rejete et ne produit aucune recommandation.
+        String consignes = OllamaDomaineClassifier.consignesPour(DomaineJuridique.values());
+
+        assertThat(consignes).contains("PAS de domaine")
+                .contains("Mariage, divorce");
+    }
+
+    @Test
+    void lesConsignes_listentTousLesDomainesDuReferentiel() {
+        String consignes = OllamaDomaineClassifier.consignesPour(DomaineJuridique.values());
+        for (DomaineJuridique d : DomaineJuridique.values()) {
+            assertThat(consignes).contains(d.name());
+        }
+    }
 }

@@ -81,7 +81,7 @@
   font-family: 'Lexend', sans-serif;
   font-weight: 800;
   font-size: 0.9rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   text-transform: uppercase;
   transition: all var(--transition-fast);
@@ -224,7 +224,7 @@
   text-align: center;
   margin-top: 2rem;
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .auth-footer a {

@@ -45,12 +45,14 @@ public class OllamaChatGenerationClient implements ChatGenerationClient {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final String modele;
+    private final int maxJetonsReponse;
 
     public OllamaChatGenerationClient(
             ObjectMapper objectMapper,
             @Value("${forsalaw.rag.chat.base-url:http://localhost:11434}") String baseUrl,
             @Value("${forsalaw.rag.chat.model:qwen2.5:3b-instruct}") String modele,
-            @Value("${forsalaw.rag.chat.read-timeout-seconds:30}") int readTimeoutSeconds
+            @Value("${forsalaw.rag.chat.read-timeout-seconds:30}") int readTimeoutSeconds,
+            @Value("${forsalaw.rag.chat.max-response-tokens:420}") int maxJetonsReponse
     ) {
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
@@ -61,6 +63,7 @@ public class OllamaChatGenerationClient implements ChatGenerationClient {
         this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
         this.objectMapper = objectMapper;
         this.modele = modele;
+        this.maxJetonsReponse = maxJetonsReponse;
     }
 
     @Override
@@ -69,7 +72,15 @@ public class OllamaChatGenerationClient implements ChatGenerationClient {
                 "model", modele,
                 "messages", messages,
                 "stream", true,
-                "options", Map.of("temperature", 0.2)
+                // num_predict : plafond MECANIQUE de longueur, en complement de la consigne.
+                // Un modele 3B respecte mal une limite enoncee en toutes lettres — mesure : des
+                // reponses de 1 600 a 2 000 caracteres la ou 3 a 5 phrases etaient demandees.
+                // Le plafond est volontairement au-dessus de la cible : il sert de filet contre
+                // les reponses qui partent en digression, pas de ciseau au milieu d'une phrase.
+                "options", Map.of(
+                        "temperature", 0.2,
+                        "num_predict", maxJetonsReponse
+                )
         );
 
         StringBuilder accumulateur = new StringBuilder();

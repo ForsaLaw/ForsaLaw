@@ -225,7 +225,7 @@
 }
 
 .sanctum-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
   font-style: italic;
   font-weight: 300;
 }

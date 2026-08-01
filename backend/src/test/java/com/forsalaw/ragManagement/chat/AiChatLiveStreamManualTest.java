@@ -25,7 +25,7 @@ class AiChatLiveStreamManualTest {
     @Test
     void jetonsArriventProgressivementEtLeFluxSeTermine() throws InterruptedException {
         var client = new OllamaChatGenerationClient(
-                new ObjectMapper(), "http://localhost:11434", "qwen2.5:3b-instruct", 30);
+                new ObjectMapper(), "http://localhost:11434", "qwen2.5:3b-instruct", 30, 420);
 
         var messages = List.of(
                 new ChatGenerationClient.Message("system",

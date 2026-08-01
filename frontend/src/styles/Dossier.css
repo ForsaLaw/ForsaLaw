@@ -201,7 +201,7 @@
 
 .timeline-meta span {
   font-size: 0.65rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .timeline-text {
@@ -217,7 +217,7 @@
 .dossier-empty {
   text-align: center;
   padding: 8rem 0;
-  color: rgba(255,255,255,0.1);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* --- Status Seals (Waxy Stamps) --- */

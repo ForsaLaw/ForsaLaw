@@ -62,9 +62,21 @@ public class OllamaDomaineClassifier implements DomaineClassifier {
         this.consignes = construireConsignes();
     }
 
-    /** Les etiquettes sont derivees de l'enum : ajouter un domaine suffit a l'exposer ici. */
     private static String construireConsignes() {
-        String catalogue = Arrays.stream(DomaineJuridique.values())
+        return consignesPour(DomaineJuridique.values());
+    }
+
+    /**
+     * Consignes de classification, derivees du referentiel : ajouter un domaine a l'enum suffit
+     * a l'exposer au modele.
+     *
+     * <p>Visible pour les tests, qui verifient que les desambiguisations mesurees comme
+     * necessaires (travail vs affaires, famille vers prive) figurent bien dans l'invite. Ces
+     * regles sont la seule chose qui separe une recommandation juste d'une recommandation
+     * plausible mais fausse.</p>
+     */
+    static String consignesPour(DomaineJuridique[] domaines) {
+        String catalogue = Arrays.stream(domaines)
                 .map(d -> "- " + d.name() + " : " + d.getLibelle())
                 .collect(Collectors.joining("\n"));
 
@@ -73,6 +85,27 @@ public class OllamaDomaineClassifier implements DomaineClassifier {
 
                 Domaines autorises :
                 %s
+
+                Distinctions qui posent probleme — applique-les avant de repondre :
+                - Licenciement, salaire, contrat de travail, employeur, demission, conges, \
+                accident du travail, syndicat => DROIT_TRAVAIL_ET_SOCIAL (JAMAIS \
+                DROIT_DES_AFFAIRES : la relation employeur-salarie prime sur le fait que \
+                l'employeur soit une entreprise).
+                - Societe, associes, fonds de commerce, faillite, concurrence, contrat \
+                commercial entre professionnels => DROIT_DES_AFFAIRES.
+                - Mariage, divorce, garde d'enfants, succession, filiation, pension \
+                alimentaire => DROIT_PRIVE (il n'existe PAS de domaine « famille » distinct).
+                - Vente ou location d'un bien, propriete, bail, voisinage => DROIT_PRIVE.
+                - Garde a vue, arrestation, plainte, infraction, peine, prison => DROIT_PENAL.
+                - Impot, administration, permis, marche public, collectivite => DROIT_PUBLIC.
+
+                Exemples :
+                Question : « Mon employeur m'a licencie sans preavis, que faire ? »
+                Reponse : DROIT_TRAVAIL_ET_SOCIAL
+                Question : « Mon associe veut vendre ses parts sans mon accord. »
+                Reponse : DROIT_DES_AFFAIRES
+                Question : « Comment se passe la garde des enfants apres un divorce ? »
+                Reponse : DROIT_PRIVE
 
                 Reponds UNIQUEMENT par l'etiquette exacte (ex. DROIT_PENAL), sans phrase, sans \
                 ponctuation, sans explication. Si la question ne releve clairement d'aucun de ces \

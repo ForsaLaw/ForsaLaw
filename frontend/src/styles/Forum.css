@@ -194,7 +194,7 @@
 .vote-btn {
   background: transparent;
   border: none;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 1rem;
   cursor: pointer;
   transition: color var(--transition-fast);
@@ -258,7 +258,7 @@
 
 .thread-excerpt {
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
   line-height: 1.5;
   font-weight: 300;
   text-transform: none;
@@ -275,7 +275,7 @@
   gap: 1rem;
   margin-top: 0.75rem;
   font-size: 0.7rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   flex-wrap: wrap;
 }
 
@@ -310,12 +310,12 @@
   font-size: 0.6rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .thread-stat-time {
   font-size: 0.65rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: none;
   font-weight: 300;
 }
@@ -434,7 +434,7 @@
 
 .contributor-posts {
   font-size: 0.65rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: none;
   font-weight: 300;
 }
@@ -480,7 +480,7 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.68rem;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .author-avatar {
@@ -567,7 +567,7 @@
 .forum-empty {
   padding: 3rem;
   text-align: center;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.8rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -588,7 +588,7 @@
 .forum-count-label {
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   display: flex;
@@ -598,7 +598,7 @@
 
 .forum-login-hint {
   font-size: 0.68rem;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.7);
   font-style: italic;
 }
 
@@ -666,7 +666,7 @@
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .forum-modal__label input,
@@ -783,7 +783,7 @@
   align-items: center;
   gap: 0.6rem;
   font-size: 0.7rem;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255, 255, 255, 0.7);
   flex-wrap: wrap;
 }
 
@@ -817,7 +817,7 @@
   align-items: center;
   justify-content: center;
   border: 3px solid var(--black);
-  color: rgba(255,255,255,0.25);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.78rem;
   letter-spacing: 0.1em;
 }
@@ -873,7 +873,7 @@
   align-items: center;
   gap: 0.25rem;
   font-size: 0.6rem;
-  color: rgba(255,255,255,0.2);
+  color: rgba(255, 255, 255, 0.7);
   font-family: monospace;
 }
 
@@ -890,7 +890,7 @@
 .forum-msg__react-btn {
   background: none;
   border: 1.5px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
   padding: 2px 6px;
   font-size: 0.8rem;
   cursor: pointer;
@@ -955,7 +955,7 @@
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0.3rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   border-radius: 4px;
@@ -1018,7 +1018,7 @@
   border: 3px solid rgba(255,255,255,0.06);
   text-align: center;
   font-size: 0.78rem;
-  color: rgba(255,255,255,0.3);
+  color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.06em;
   margin-top: 1rem;
 }

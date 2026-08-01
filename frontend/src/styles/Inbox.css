@@ -145,7 +145,7 @@
 
 .inbox-contact-preview {
   font-size: 0.62rem;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -162,7 +162,7 @@
 
 .inbox-contact-time {
   font-size: 0.5rem;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
   font-family: ui-monospace, monospace;
 }
 
@@ -247,7 +247,7 @@
 .chat-header-id {
   font-size: 0.5rem;
   letter-spacing: 0.2em;
-  color: rgba(255,255,255,0.1);
+  color: rgba(255, 255, 255, 0.7);
   font-family: ui-monospace, monospace;
   flex-shrink: 0;
 }
@@ -366,7 +366,7 @@
 
 .msg-time {
   font-size: 0.5rem;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
   font-family: ui-monospace, monospace;
   padding: 0 2px;
 }
@@ -377,7 +377,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
   font-family: ui-monospace, monospace;
   font-size: 0.6rem;
   letter-spacing: 0.3em;
@@ -420,7 +420,7 @@
 
 .meeting-card-id {
   font-size: 0.5rem;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
   font-family: ui-monospace, monospace;
   letter-spacing: 0.15em;
 }
@@ -492,7 +492,7 @@
   font-weight: 800;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   font-family: 'Lexend', sans-serif;
   transition: color 0.15s, background 0.15s;
@@ -527,7 +527,7 @@
   background: transparent;
   border: 2px solid transparent;
   padding: 5px 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -600,7 +600,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .inbox-rdv-label--full { grid-column: 1 / -1; }
@@ -677,7 +677,7 @@
 }
 
 .inbox-text-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
   font-weight: 300;
 }
 

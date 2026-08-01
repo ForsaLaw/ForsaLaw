@@ -353,7 +353,34 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-size: 0.7rem;
-  opacity: 0.8;
+  /* 0.8 sur du doré de 0.7rem restait en dessous du seuil AA. */
+  opacity: 0.92;
+  padding: 0.25rem 0.15rem;
+  transition: opacity var(--transition-fast), color var(--transition-fast),
+              box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+/* Soulignement dur plutot qu'un text-decoration : meme registre graphique que les
+   traits pleins du reste de l'interface. */
+.auth-link-btn:hover {
+  opacity: 1;
+  color: var(--white);
+  box-shadow: inset 0 -2px 0 var(--gold);
+}
+
+.auth-link-btn:active {
+  transform: translateY(1px);
+  color: var(--gold);
+  box-shadow: inset 0 -2px 0 var(--white);
+}
+
+/* Sans ceci, le lien etait strictement invisible au clavier : ni contour, ni changement
+   d'etat. C'est le seul moyen d'atteindre « mot de passe oublie » sans souris. */
+.auth-link-btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  opacity: 1;
+  color: var(--white);
 }
 
 .auth-submit-main {
