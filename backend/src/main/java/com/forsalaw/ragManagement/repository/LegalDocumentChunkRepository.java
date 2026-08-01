@@ -151,6 +151,16 @@ public class LegalDocumentChunkRepository {
      * date (fenetre de {@code legal_instrument}). L'absence de ligne dans {@code legal_instrument}
      * ne bloque jamais un resultat : une information manquante ne doit pas se traduire par un
      * resultat cache.</p>
+     *
+     * <p><b>Statut sans date de fin : le cas que la fenetre seule ne couvre pas.</b> Ce filtre
+     * temporel suppose qu'un texte sorti de vigueur porte un {@code in_force_until}. Mesure sur
+     * le corpus reel : 697 des 698 instruments ABROGE et la totalite des 217 NON_EN_VIGUEUR ont
+     * un {@code in_force_until} NUL. La fenetre n'avait donc rien a comparer et laissait passer
+     * 7 872 extraits de tier 1 — du droit connu comme sorti de vigueur, restitue comme du droit
+     * actuel, indiscernable pour qui interroge. Un texte dont on SAIT qu'il n'est plus en
+     * vigueur, a une date d'abrogation inconnue, est donc exclu des qu'on interroge le present ;
+     * il reste disponible pour une date passee, ou il a pu etre applicable. {@code INCONNU} et
+     * l'absence d'instrument ne sont jamais exclus : ils ne portent aucune connaissance.</p>
      */
     public List<ResultatRecherche> rechercherParSimilarite(float[] vecteur, int tier, String tenantId,
                                                             LocalDate asOf, int limite) {
@@ -177,6 +187,13 @@ public class LegalDocumentChunkRepository {
                    AND (i.code_name IS NULL OR (
                          (i.in_force_from IS NULL OR i.in_force_from <= ?)
                          AND (i.in_force_until IS NULL OR ? < i.in_force_until)
+                         -- Sorti de vigueur a une date NON renseignee : la fenetre ci-dessus ne
+                         -- peut pas l'ecarter. On sait pourtant qu'il ne s'applique plus
+                         -- aujourd'hui, donc on l'exclut des que la date interrogee est le
+                         -- present ou l'avenir, et on le conserve pour une date passee.
+                         AND NOT (i.status IN ('ABROGE', 'NON_EN_VIGUEUR')
+                                  AND i.in_force_until IS NULL
+                                  AND ? >= CURRENT_DATE)
                        ))
                  ORDER BY c.embedding <=> CAST(? AS vector)
                  LIMIT ?
@@ -191,6 +208,9 @@ public class LegalDocumentChunkRepository {
         params.add(referenceSql);
         params.add(referenceSql);
         params.add(referenceSql);
+        params.add(referenceSql);
+        // 5e occurrence : la date interrogee, comparee a CURRENT_DATE pour distinguer une
+        // question sur le present d'une question sur une date passee.
         params.add(referenceSql);
         params.add(vecteurLitteral);
         params.add(limite);

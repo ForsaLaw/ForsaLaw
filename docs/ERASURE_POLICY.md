@@ -4,6 +4,15 @@ ForsaLaw is a legal platform: it must honour the **right to erasure** (GDPR Art.
 Tunisia INPDP / Law 2004‑63) **and** keep a trustworthy, tamper‑proof **audit trail**.
 Those two requirements pull in opposite directions. This document records how we reconcile them.
 
+> **Implementation status.** Enforced in code by
+> `userManagement/service/ErasureService.java`, reached through `DELETE /api/users/me`.
+>
+> This document previously described the policy while the endpoint only set `actif = false`
+> — name, first name, email and phone survived a "deleted" account in clear text. The gap
+> between the written policy and the code was itself the exposure, so treat any future edit
+> here as a change to `ErasureService` too, and to `ErasureServiceTest`, which asserts the
+> absence of the data rather than the execution of the code.
+
 ## The constraint
 
 `audit_log` is **append‑only / immutable**. Any `UPDATE` or `DELETE` is physically
