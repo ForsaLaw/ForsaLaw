@@ -137,11 +137,22 @@ public class AiChatService {
                 new ChatGenerationClient.Message("user", prompt)
         );
 
+        // Filtre des citations, par requete (il porte un etat de tampon). Le nombre d'extrait
+        // REELLEMENT fournis au modele borne les numeros acceptables : une citation [7] sur
+        // trois extraits renvoie a une source qui n'a jamais existe.
+        AssainisseurCitations assainisseur = new AssainisseurCitations(resultats.size());
+
         chatGenerationClient.genererEnFlux(messages, new ChatGenerationClient.GestionnaireFlux() {
             @Override
             public void surJeton(String delta) {
+                // Le filtre peut ne rien restituer pour ce fragment : il retient la sortie tant
+                // qu'un crochet ouvert n'est pas tranche.
+                assainisseur.accepter(delta, this::envoyer);
+            }
+
+            private void envoyer(String texte) {
                 try {
-                    emitter.send(SseEmitter.event().name("jeton").data(encoderJeton(delta)));
+                    emitter.send(SseEmitter.event().name("jeton").data(encoderJeton(texte)));
                 } catch (IOException e) {
                     // Le client a ferme la connexion (onglet ferme, navigation) : rien de plus
                     // a faire, l'emitter se completera de lui-meme via son propre listener.
@@ -151,6 +162,9 @@ public class AiChatService {
 
             @Override
             public void surFin(ChatGenerationClient.UsageJetons usage) {
+                // Vide le tampon AVANT de cloturer : une citation encore retenue serait
+                // autrement perdue avec la fin du flux.
+                assainisseur.terminer(this::envoyer);
                 // Ajustement du depot au cout reel. Si le client s'est deconnecte avant cette
                 // trame, ce code n'est jamais atteint et le depot reste acquis : c'est ce qui
                 // rend une boucle d'abandon couteuse.
