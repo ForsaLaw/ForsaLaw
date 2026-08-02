@@ -152,8 +152,19 @@ jobs:
 
       # PR uniquement : l'action compare deux etats de l'arbre de dependances, elle n'a pas de
       # base de comparaison sur un push direct.
+      #
+      # INERTE TANT QUE LE GRAPHE DE DEPENDANCES N'EST PAS ACTIVE sur le depot. L'action
+      # echoue alors avec « Dependency review is not supported on this repository » — un echec
+      # de configuration, pas une vulnerabilite trouvee. Le laisser bloquant rendrait toutes
+      # les PR rouges pour une raison qui n'a rien a voir avec leur contenu, et la premiere
+      # reaction serait de supprimer le job.
+      #
+      # A activer dans Settings > Code security > Dependency graph (le meme reglage conditionne
+      # les alertes Dependabot). Une fois actif, RETIRER continue-on-error : c'est cette etape,
+      # et elle seule, qui empeche l'entree d'une dependance vulnerable.
       - name: Review dependencies added by this PR
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
