@@ -1,0 +1,70 @@
+# Mises a jour de dependances et alertes de vulnerabilite.
+#
+# Le depot n'avait aucun suivi : ni Dependabot, ni analyse de vulnerabilites en CI. Une faille
+# publiee dans Spring Boot, jjwt ou une dependance npm serait restee invisible jusqu'a ce que
+# quelqu'un la cherche. Sur une plateforme qui detient des pieces d'identite d'avocats et des
+# documents de dossiers, l'absence de signal est le probleme, pas le rythme des mises a jour.
+version: 2
+
+updates:
+  # ─── Backend (Maven) ────────────────────────────────────────────────────────
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Tunis
+    target-branch: develop
+    open-pull-requests-limit: 5
+    labels: [dependances, backend]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Les modules Spring Boot avancent ensemble : les proposer separement produirait des
+      # PR qui ne compilent pas isolement.
+      spring:
+        patterns: ["org.springframework*", "org.springframework.boot*"]
+      aws-sdk:
+        patterns: ["software.amazon.awssdk*"]
+      testcontainers:
+        patterns: ["org.testcontainers*"]
+    ignore:
+      # La montee de version majeure de Spring Boot (3.x -> 4.x) est un chantier, pas une mise
+      # a jour de dependance : elle touche la configuration de securite et Hibernate. A mener
+      # deliberement, sinon la PR reste ouverte indefiniment et masque les vraies alertes.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+
+  # ─── Frontend (npm) ─────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Tunis
+    target-branch: develop
+    open-pull-requests-limit: 5
+    labels: [dependances, frontend]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      react:
+        patterns: ["react", "react-dom", "react-router-dom", "@vitejs/*", "vite"]
+      i18n:
+        patterns: ["i18next*", "react-i18next"]
+      tests:
+        patterns: ["vitest", "@vitest/*", "@testing-library/*", "jsdom"]
+
+  # ─── Actions GitHub ─────────────────────────────────────────────────────────
+  # Une action epinglee sur une version obsolete est un vecteur d'execution de code dans la CI,
+  # avec acces aux secrets du depot.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    target-branch: develop
+    labels: [dependances, ci]
+    commit-message:
+      prefix: "chore(ci)"

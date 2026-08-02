@@ -5,6 +5,7 @@ import com.forsalaw.avocatManagement.entity.DomaineJuridique;
 import com.forsalaw.ragManagement.chat.budget.AiTokenBudgetService;
 import com.forsalaw.ragManagement.chat.routing.DomaineClassifier;
 import com.forsalaw.ragManagement.ingestion.LegalDocumentIngestionService;
+import com.forsalaw.ragManagement.instrument.LegalInstrumentStatus;
 import com.forsalaw.ragManagement.repository.LegalDocumentChunkRepository.ResultatRecherche;
 import com.forsalaw.ragManagement.search.LegalChunkSearchService;
 import lombok.RequiredArgsConstructor;
@@ -250,6 +251,7 @@ public class AiChatService {
                 sb.append('[').append(i + 1).append("] ")
                         .append(r.codeName())
                         .append(", art. ").append(r.articleReference())
+                        .append(mentionHorsVigueur(r))
                         .append('\n')
                         .append('"').append(r.content().strip()).append('"')
                         .append("\n\n");
@@ -257,5 +259,21 @@ public class AiChatService {
         }
         sb.append("Question : ").append(question);
         return sb.toString();
+    }
+
+    /**
+     * Signale au modele qu'un extrait n'est plus en vigueur.
+     *
+     * <p>La recherche ecarte deja ces textes quand la question porte sur le present. Il en
+     * subsiste sur une question datee (« etait-ce licite en 2018 ? »), ou l'extrait est
+     * legitime — mais le restituer sans mention le rendrait indiscernable du droit actuel,
+     * exactement le defaut que le filtre corrige en amont. {@code INCONNU} et l'absence
+     * d'instrument ne portent aucune connaissance : on n'affirme rien a leur sujet.</p>
+     */
+    private static String mentionHorsVigueur(ResultatRecherche r) {
+        return LegalInstrumentStatus.ABROGE.equals(r.instrumentStatus())
+                || LegalInstrumentStatus.NON_EN_VIGUEUR.equals(r.instrumentStatus())
+                ? " (TEXTE ABROGE — n'est plus en vigueur aujourd'hui)"
+                : "";
     }
 }

@@ -1,0 +1,47 @@
+# Terminaison TLS de production.
+#
+# Pourquoi ce fichier existe : docker-compose.prod.yml publiait le frontend en clair sur le
+# port 80, sans aucun terminaisseur, alors que PUBLIC_BASE_URL vaut https:// et que
+# AUTH_COOKIE_SECURE vaut true par defaut. Deploye tel quel, l'ensemble demarrait normalement
+# puis PERSONNE ne pouvait se connecter : le navigateur refuse d'emettre un cookie Secure sur
+# une connexion en clair, et le symptome (« identifiants incorrects » a repetition, sans erreur
+# serveur) ne designe rien de ce qui le cause.
+#
+# Caddy plutot qu'un Nginx + certbot : l'obtention et le renouvellement des certificats ACME
+# sont integres, sans tache planifiee a surveiller. Un certificat expire est la panne de
+# production la plus banale et la plus evitable.
+
+{
+	# Adresse de contact ACME : Let's Encrypt y previent d'un renouvellement en echec.
+	# Absente, Caddy fonctionne mais l'avertissement d'expiration n'arrive nulle part.
+	email {$ACME_EMAIL}
+}
+
+# Le domaine conditionne l'emission du certificat. Un nom qui ne resout pas vers cette machine
+# fait echouer le defi ACME : Caddy sert alors en HTTP et le probleme decrit plus haut revient.
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+
+	# Toute la surface publique passe par le Nginx du frontend, qui distingue lui-meme le SPA,
+	# l'API, OAuth2 et le WebSocket. Caddy n'a donc aucune route a connaitre : il termine TLS
+	# et transmet. Les en-tetes X-Forwarded-* sont poses par Caddy, propages par Nginx
+	# (voir frontend/nginx.conf) puis lus par Spring (server.forward-headers-strategy=framework).
+	reverse_proxy frontend:80 {
+		# Une connexion STOMP/SockJS reste ouverte longtemps : sans ce relevement, le flux
+		# temps reel serait coupe periodiquement par le proxy.
+		transport http {
+			read_timeout 3600s
+			write_timeout 3600s
+		}
+	}
+
+	# HSTS : impose HTTPS aux visites suivantes, y compris avant la premiere requete si le
+	# domaine est preload. A n'activer qu'une fois le certificat obtenu — un max-age long pose
+	# sur un domaine encore en HTTP rendrait le site injoignable le temps du max-age.
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -64,6 +64,7 @@ export default function WitnessRegistryFooter({ onNavigate }) {
                 <li><button onClick={() => onNavigate?.('faq')}>Protocole</button></li>
                 <li><button onClick={() => onNavigate?.('privacy')}>Confidentialité</button></li>
                 <li><button onClick={() => onNavigate?.('terms')}>Législation</button></li>
+                <li><button onClick={() => onNavigate?.('legal')}>Mentions légales</button></li>
               </ul>
             </div>
           </div>

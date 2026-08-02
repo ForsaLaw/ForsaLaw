@@ -1,0 +1,135 @@
+/* ─── PAGES LEGALES (CGU / confidentialite / mentions) ──────────────
+   Reprend le vocabulaire visuel existant : bordures franches, or sur charbon, capitales
+   espacees. Aucun nouveau parti pris graphique — ces pages doivent se lire comme le reste
+   du site, pas comme une annexe rapportee. */
+
+.legal-page {
+  min-height: 100vh;
+  padding: 7.5rem 2rem 4rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: 'Lexend', sans-serif;
+}
+
+.legal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: var(--gold);
+  border-bottom: 3px solid var(--gold);
+  padding-bottom: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.legal-header h1 {
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--white);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.75rem;
+}
+
+.legal-nav-link {
+  padding: 0.5rem 0.9rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: border-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+.legal-nav-link:hover {
+  border-color: var(--gold);
+  color: var(--white);
+}
+
+.legal-nav-link:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.legal-nav-link:active {
+  transform: translateY(1px);
+}
+
+.legal-nav-link.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Avertissement de brouillon : deliberement impossible a manquer. Un document legal
+   incomplet qui ressemble a un document acheve est pire que pas de document du tout. */
+.legal-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 2rem;
+  border: 3px solid #d98324;
+  background: rgba(217, 131, 36, 0.12);
+  color: #ffd9a8;
+}
+
+.legal-warning p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.legal-warning strong {
+  color: #ffb455;
+}
+
+.legal-sections {
+  list-style: none;
+  counter-reset: legal;
+  padding: 0;
+  margin: 0;
+}
+
+.legal-sections li {
+  counter-increment: legal;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  padding: 0 0 0 1.1rem;
+  margin-bottom: 1.6rem;
+}
+
+.legal-sections h2 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 0.4rem;
+}
+
+.legal-sections h2::before {
+  content: counter(legal) '. ';
+  opacity: 0.6;
+}
+
+.legal-sections p {
+  margin: 0;
+  /* 0.78 sur charbon : au-dessus du seuil AA, contrairement aux 0.2-0.3 corriges ailleurs. */
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  .legal-page {
+    padding: 6rem 1.1rem 3rem;
+  }
+}

@@ -43,6 +43,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      # Le linter a trouve, des sa premiere execution, un setter appele sans exister
+      # (setRdvMsg dans InboxPage) : une ReferenceError qui n'attendait qu'un clic d'avocat.
+      # Bloquant sur les erreurs, tolerant sur les avertissements (imports inutilises).
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
       - name: Build
         run: npm run build
 
@@ -127,3 +134,87 @@ jobs:
             -Dsonar.sources=backend/src/main,frontend/src
             -Dsonar.java.binaries=backend/target/classes
             -Dsonar.sourceEncoding=UTF-8
+
+  # ─── Vulnerabilites des dependances ──────────────────────────────────────────
+  # Le depot n'avait aucune analyse : une CVE publiee dans Spring Boot, jjwt ou une dependance
+  # npm serait restee invisible. Deux mecanismes complementaires, aucun ne demandant de compte
+  # tiers : la revue des dependances AJOUTEES par une PR (bloque l'entree d'un paquet vulnerable)
+  # et l'audit de l'arbre npm DEJA installe (rattrape ce qui est entre avant ce garde-fou).
+  security:
+    name: Dependency vulnerabilities
+    runs-on: ubuntu-latest
+    # Le secret est expose en variable d'environnement pour pouvoir etre TESTE : le contexte
+    # `secrets` n'est pas evaluable dans un `if` d'etape. Meme detour que le job SonarCloud.
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # PR uniquement : l'action compare deux etats de l'arbre de dependances, elle n'a pas de
+      # base de comparaison sur un push direct.
+      #
+      # INERTE TANT QUE LE GRAPHE DE DEPENDANCES N'EST PAS ACTIVE sur le depot. L'action
+      # echoue alors avec « Dependency review is not supported on this repository » — un echec
+      # de configuration, pas une vulnerabilite trouvee. Le laisser bloquant rendrait toutes
+      # les PR rouges pour une raison qui n'a rien a voir avec leur contenu, et la premiere
+      # reaction serait de supprimer le job.
+      #
+      # A activer dans Settings > Code security > Dependency graph (le meme reglage conditionne
+      # les alertes Dependabot). Une fois actif, RETIRER continue-on-error : c'est cette etape,
+      # et elle seule, qui empeche l'entree d'une dependance vulnerable.
+      - name: Review dependencies added by this PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Rapporte sans bloquer, DELIBEREMENT — et cette exception est datee, pas permanente.
+      #
+      # L'arbre porte aujourd'hui deux vulnerabilites « high », toutes deux verifiees comme
+      # inatteignables dans le produit deploye :
+      #   - react-router (GHSA-qwww-vcr4-c8h2) : contournement CSRF en mode RSC. L'application
+      #     est une SPA classique (BrowserRouter, aucun createBrowserRouter ni RSC) : le chemin
+      #     vulnerable n'existe pas ici. Le correctif impose de REDESCENDRE en 7.11.0.
+      #   - vite (GHSA-fx2h-pf6j-xcff) : contournement de server.fs.deny sur chemins alternes
+      #     Windows. Concerne le SERVEUR DE DEV. Le Dockerfile est multi-etapes : vite n'existe
+      #     que dans l'etage de build, l'image finale est un nginx servant dist/. Reel en
+      #     revanche sur un poste de developpement Windows. Correctif : vite 8 (deux versions
+      #     majeures d'ecart, pas de retroportage en 5.x).
+      #
+      # Bloquer ici rendrait le job rouge en permanence pour deux failles non exposees, et un
+      # job toujours rouge cesse d'etre lu — c'est ainsi qu'on rate la troisieme. La protection
+      # reelle est l'etape precedente, qui refuse toute NOUVELLE dependance vulnerable ; celle-ci
+      # sert de rappel. A repasser bloquant apres la montee de vite.
+      - name: npm audit (frontend, informational)
+        working-directory: frontend
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      # OWASP Dependency-Check couvre le versant Java, que npm audit ne voit pas. Il exige
+      # desormais une cle NVD : sans elle, le telechargement de la base est limite en debit au
+      # point d'etre inutilisable (plusieurs dizaines de minutes, puis echec). Le job s'execute
+      # donc uniquement si la cle est fournie, sur le meme principe que SonarCloud plus haut.
+      - name: Set up JDK 17
+        if: ${{ env.NVD_API_KEY != '' }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: OWASP Dependency-Check (backend)
+        if: ${{ env.NVD_API_KEY != '' }}
+        working-directory: backend
+        run: >
+          mvn -B org.owasp:dependency-check-maven:10.0.4:check
+          -DnvdApiKey="$NVD_API_KEY"
+          -DfailBuildOnCVSS=8
+          -DassemblyAnalyzerEnabled=false

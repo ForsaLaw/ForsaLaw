@@ -5,6 +5,7 @@ import com.forsalaw.userManagement.model.NotificationPreferencesDTO;
 import com.forsalaw.userManagement.model.UpdateNotificationPreferencesRequest;
 import com.forsalaw.userManagement.model.UpdateUserRequest;
 import com.forsalaw.userManagement.model.UserDTO;
+import com.forsalaw.userManagement.service.ErasureService;
 import com.forsalaw.userManagement.service.NotificationPreferencesService;
 import com.forsalaw.userManagement.service.ProfilePhotoService;
 import com.forsalaw.userManagement.service.UserService;
@@ -35,6 +36,7 @@ public class UserController {
     private final UserService userService;
     private final NotificationPreferencesService notificationPreferencesService;
     private final ProfilePhotoService profilePhotoService;
+    private final ErasureService erasureService;
 
     @Operation(summary = "Mon profil", description = "Retourne les informations du compte de l'utilisateur connecté (nom, prénom, email, rôle, etc.).")
     @GetMapping("/me")
@@ -114,11 +116,19 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Supprimer mon compte", description = "Désactive le compte de l'utilisateur connecté (soft delete). Le compte ne pourra plus se connecter.")
+    @Operation(
+            summary = "Supprimer mon compte",
+            description = "Anonymise définitivement les données personnelles du compte "
+                    + "(nom, prénom, email, téléphone, mot de passe, photo, et identifiants "
+                    + "professionnels si le compte est un avocat) puis le désactive. "
+                    + "Opération IRRÉVERSIBLE. Le journal d'audit, immuable, est conservé "
+                    + "intact : il continue de référencer le compte, devenu non identifiable. "
+                    + "Les sauvegardes antérieures conservent les valeurs d'origine jusqu'à "
+                    + "leur expiration (30 jours).")
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteMyAccount(Authentication authentication) {
         String email = authentication.getName();
-        userService.deactivateMyAccount(email);
+        erasureService.effacer(email);
         return ResponseEntity.noContent().build();
     }
 }

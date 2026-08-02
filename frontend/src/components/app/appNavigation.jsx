@@ -45,6 +45,12 @@ const PAGE_KEY_TO_PATH = {
   forum: '/forum',
   ai: '/ai',
   'admin-space': '/admin-space',
+  // Le pied de page proposait deja « Confidentialite » et « Legislation ». Faute d'entree
+  // ici, mapPageKeyToPath repliait sur '/' : les deux liens ramenaient silencieusement a
+  // l'accueil, ce qui se lit comme un site qui n'a pas de politique de confidentialite.
+  privacy: '/legal/confidentialite',
+  terms: '/legal/conditions',
+  legal: '/legal/mentions',
 }
 
 export function mapPageKeyToPath(pageKey) {

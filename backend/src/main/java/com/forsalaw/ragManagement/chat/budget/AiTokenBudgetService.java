@@ -1,6 +1,8 @@
 package com.forsalaw.ragManagement.chat.budget;
 
 import com.forsalaw.userManagement.repository.UserRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -41,9 +43,21 @@ public class AiTokenBudgetService {
     private final int depotJetons;
     private final long plafondMensuelGlobal;
 
+    /**
+     * Compteurs de supervision. La consommation etait deja enregistree ligne a ligne dans
+     * {@code ai_token_usage} mais rien ne la restituait : constater une derive de cout, ou une
+     * serie de refus pour budget epuise, exigeait d'interroger la base a la main. Ces compteurs
+     * rendent les deux visibles dans /actuator/prometheus.
+     */
+    private final Counter jetonsInvite;
+    private final Counter jetonsReponse;
+    private final Counter refusQuotaUtilisateur;
+    private final Counter refusPlafondGlobal;
+
     public AiTokenBudgetService(
             AiTokenUsageRepository usageRepository,
             UserRepository userRepository,
+            MeterRegistry registry,
             @Value("${forsalaw.ai.budget.deposit-tokens:1000}") int depotJetons,
             @Value("${forsalaw.ai.budget.monthly-global-tokens:5000000}") long plafondMensuelGlobal
     ) {
@@ -51,6 +65,26 @@ public class AiTokenBudgetService {
         this.userRepository = userRepository;
         this.depotJetons = depotJetons;
         this.plafondMensuelGlobal = plafondMensuelGlobal;
+
+        this.jetonsInvite = Counter.builder("forsalaw.ai.tokens")
+                .description("Jetons consommes par l'assistant juridique")
+                .tag("type", "invite")
+                .register(registry);
+        this.jetonsReponse = Counter.builder("forsalaw.ai.tokens")
+                .description("Jetons consommes par l'assistant juridique")
+                .tag("type", "reponse")
+                .register(registry);
+        // Deux compteurs distincts, car les deux refus n'appellent pas la meme reaction :
+        // un quota utilisateur atteint est un usage nominal, le plafond global atteint est
+        // une interruption de service pour TOUT LE MONDE.
+        this.refusQuotaUtilisateur = Counter.builder("forsalaw.ai.budget.refus")
+                .description("Demandes refusees faute de budget")
+                .tag("portee", "utilisateur")
+                .register(registry);
+        this.refusPlafondGlobal = Counter.builder("forsalaw.ai.budget.refus")
+                .description("Demandes refusees faute de budget")
+                .tag("portee", "global")
+                .register(registry);
     }
 
     /** Budget epuise : porte le message a renvoyer tel quel a l'utilisateur. */
@@ -76,6 +110,7 @@ public class AiTokenBudgetService {
         if (consommeAujourdhui >= utilisateur.getDailyTokenBudget()) {
             log.warn("Budget IA quotidien epuise pour l'utilisateur {} ({} / {} jetons).",
                     utilisateur.getId(), consommeAujourdhui, utilisateur.getDailyTokenBudget());
+            refusQuotaUtilisateur.increment();
             throw new BudgetEpuiseException(
                     "Votre quota quotidien d'assistance IA est epuise. Il sera renouvele demain.");
         }
@@ -85,6 +120,7 @@ public class AiTokenBudgetService {
         if (consommeCeMois >= plafondMensuelGlobal) {
             log.error("Plafond IA mensuel GLOBAL atteint ({} / {} jetons) : service suspendu.",
                     consommeCeMois, plafondMensuelGlobal);
+            refusPlafondGlobal.increment();
             throw new BudgetEpuiseException(
                     "Le service d'assistance IA est momentanement suspendu. Veuillez reessayer plus tard.");
         }
@@ -109,6 +145,8 @@ public class AiTokenBudgetService {
                 usage.regler(jetonsInvite, jetonsReponse);
                 usageRepository.save(usage);
             });
+            this.jetonsInvite.increment(jetonsInvite);
+            this.jetonsReponse.increment(jetonsReponse);
         } catch (RuntimeException e) {
             log.error("Impossible d'ajuster la consommation de jetons {} : le depot reste acquis.",
                     idUsage, e);

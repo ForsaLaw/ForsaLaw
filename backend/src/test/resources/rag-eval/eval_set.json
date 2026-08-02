@@ -3,102 +3,170 @@
     "Jeu d'evaluation du RAG juridique tunisien : 10 questions reelles (arabe et francais),",
     "chacune avec l'article attendu comme verite terrain.",
     "",
-    "TODO — VALIDATION JURIDIQUE OBLIGATOIRE AVANT USAGE.",
-    "Chaque entree porte \"verified\": false. Les references ci-dessous ont ete redigees a",
-    "partir de connaissances generales du droit tunisien, SANS verification article par",
-    "article contre le texte officiel publie au JORT.",
+    "DEUX NIVEAUX DE VALIDATION, A NE PAS CONFONDRE.",
     "",
-    "Tant que \"verified\" reste false, les metriques calculees sur ce jeu ne veulent RIEN",
-    "dire : une verite terrain fausse penalise une recherche correcte et recompense une",
-    "recherche fausse. Un jeu d'evaluation errone est pire qu'aucun jeu, parce qu'il donne",
-    "l'illusion de mesurer.",
+    "1. COHERENCE AVEC LE CORPUS — automatisable, et desormais verifiee.",
+    "   RagEvalCorpusConsistencyManualTest confronte chaque couple (code_name,",
+    "   article_reference) au corpus reellement ingere. Cette verification a montre que la",
+    "   verite terrain n'etait pas comparable au corpus : code_name portait des libelles",
+    "   humains (« Code des Obligations et des Contrats ») la ou la base stocke des codes",
+    "   courts (coc, csp, ct, cp, cpcc, cpp). Aucune entree ne pouvait donc etre trouvee",
+    "   telle quelle. Corrige : code_name porte le code du corpus, code_label le libelle.",
     "",
-    "Procedure : un juriste tunisien verifie chaque couple (code_name, article_reference)",
-    "contre le texte en vigueur, corrige si besoin, puis passe \"verified\" a true et",
-    "renseigne \"verified_by\" et \"verified_on\"."
+    "   Trois anomalies de fond ont ete relevees au passage :",
+    "     - eval-010 visait « 13-bis » ; le corpus ecrit « 13bis » (comme 132bis). Corrige.",
+    "     - eval-005 vise « 6-4 » du Code du Travail : le code est present (585 extraits)",
+    "       mais aucune reference n'a cette forme. Marque inatteignable.",
+    "     - eval-008 vise le Code des Societes Commerciales : ABSENT du corpus (0 extrait).",
+    "       Lacune d'ingestion, pas defaut de recherche. Marque inatteignable.",
+    "",
+    "   Consequence sur les mesures deja publiees : le plafond reel est de 8, pas de 10.",
+    "   Le « sans HyDE 2/10, avec HyDE 4/10 » de HydeTopTenHitRateManualTest rapportait donc",
+    "   un score a un denominateur que deux questions rendaient inatteignable.",
+    "",
+    "2. EXACTITUDE JURIDIQUE — NON automatisable, et TOUJOURS EN ATTENTE.",
+    "   Chaque entree porte encore \"verified\": false. Qu'un article existe dans le corpus ne",
+    "   dit PAS qu'il repond a la question : seul un juriste tunisien peut l'affirmer contre",
+    "   le texte en vigueur publie au JORT. Tant que ce champ vaut false, un taux de reussite",
+    "   calcule sur ce jeu mesure la stabilite de la recherche, pas sa justesse.",
+    "",
+    "   Procedure : un juriste verifie chaque couple, corrige si besoin, passe \"verified\" a",
+    "   true et renseigne \"verified_by\" et \"verified_on\"."
   ],
-  "schema_version": 1,
+  "schema_version": 2,
   "embedding_model": "BAAI/bge-m3",
   "questions": [
     {
       "id": "eval-001",
       "lang": "fr",
       "question": "Quel est le délai de prescription de droit commun en matière d'obligations en Tunisie ?",
-      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "402" },
+      "expected": {
+        "code_name": "coc",
+        "article_reference": "402",
+        "code_label": "Code des Obligations et des Contrats"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-002",
       "lang": "ar",
       "question": "ما هي شروط صحة العقد في القانون التونسي؟",
-      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "2" },
+      "expected": {
+        "code_name": "coc",
+        "article_reference": "2",
+        "code_label": "Code des Obligations et des Contrats"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-003",
       "lang": "fr",
       "question": "Quel est l'âge minimum légal du mariage en Tunisie ?",
-      "expected": { "code_name": "Code du Statut Personnel", "article_reference": "5" },
+      "expected": {
+        "code_name": "csp",
+        "article_reference": "5",
+        "code_label": "Code du Statut Personnel"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-004",
       "lang": "ar",
       "question": "ما هي الإجراءات القانونية للطلاق في تونس؟",
-      "expected": { "code_name": "Code du Statut Personnel", "article_reference": "31" },
+      "expected": {
+        "code_name": "csp",
+        "article_reference": "31",
+        "code_label": "Code du Statut Personnel"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-005",
       "lang": "fr",
       "question": "Quelle est la durée de la période d'essai dans un contrat de travail à durée indéterminée ?",
-      "expected": { "code_name": "Code du Travail", "article_reference": "6-4" },
+      "expected": {
+        "code_name": "ct",
+        "article_reference": "6-4",
+        "code_label": "Code du Travail"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": false,
+      "unattainable_reason": "Le corpus contient bien le Code du Travail (585 extraits) mais AUCUN article « 6-4 » : les references y sont de la forme 6, 60, 61. La reference de la verite terrain n'existe pas sous cette forme et doit etre etablie par un juriste."
     },
     {
       "id": "eval-006",
       "lang": "ar",
       "question": "ما هي عقوبة السرقة في المجلة الجزائية التونسية؟",
-      "expected": { "code_name": "Code Pénal", "article_reference": "264" },
+      "expected": {
+        "code_name": "cp",
+        "article_reference": "264",
+        "code_label": "Code Pénal"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-007",
       "lang": "fr",
       "question": "Quel est le délai pour former un pourvoi en cassation en matière civile ?",
-      "expected": { "code_name": "Code de Procédure Civile et Commerciale", "article_reference": "185" },
+      "expected": {
+        "code_name": "cpcc",
+        "article_reference": "185",
+        "code_label": "Code de Procédure Civile et Commerciale"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-008",
       "lang": "ar",
       "question": "ما هو الحد الأدنى لرأس مال الشركة خفية الاسم؟",
-      "expected": { "code_name": "Code des Sociétés Commerciales", "article_reference": "161" },
+      "expected": {
+        "code_name": "csc",
+        "article_reference": "161",
+        "code_label": "Code des Sociétés Commerciales"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": false,
+      "unattainable_reason": "Le Code des Societes Commerciales est TOTALEMENT absent du corpus (0 extrait). Aucune recherche ne peut repondre a cette question : c'est une lacune d'ingestion, pas un defaut de recherche."
     },
     {
       "id": "eval-009",
       "lang": "fr",
       "question": "Quelles sont les obligations du bailleur dans un contrat de louage ?",
-      "expected": { "code_name": "Code des Obligations et des Contrats", "article_reference": "742" },
+      "expected": {
+        "code_name": "coc",
+        "article_reference": "742",
+        "code_label": "Code des Obligations et des Contrats"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     },
     {
       "id": "eval-010",
       "lang": "ar",
       "question": "ما هي مدة الاحتفاظ بالمحضر في حالة التلبس بجريمة؟",
-      "expected": { "code_name": "Code de Procédure Pénale", "article_reference": "13-bis" },
+      "expected": {
+        "code_name": "cpp",
+        "article_reference": "13bis",
+        "code_label": "Code de Procédure Pénale"
+      },
       "tier": 1,
-      "verified": false
+      "verified": false,
+      "attainable": true
     }
   ]
 }

@@ -249,13 +249,42 @@ services:
       backend:
         condition: service_healthy
     networks: [forsalaw-net]
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
+    # Ne publie plus de port : le frontend n'est atteint que par le service « proxy », qui
+    # termine TLS. L'exposer directement rouvrirait un acces en clair contournant HTTPS.
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
       interval: 15s
       timeout: 5s
       retries: 5
+
+  # ─── Terminaison TLS ────────────────────────────────────────────────────────
+  # Seul service publiant des ports. Sans lui, la pile demarrait en clair sur le port 80 alors
+  # que AUTH_COOKIE_SECURE=true : le navigateur retenait le cookie d'authentification et la
+  # connexion echouait pour tout le monde, sans la moindre erreur cote serveur.
+  proxy:
+    image: caddy:2-alpine
+    container_name: forsalaw-proxy
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks: [forsalaw-net]
+    ports:
+      # 80 reste ouvert : Caddy y redirige vers HTTPS et y repond au defi ACME HTTP-01.
+      # Le fermer empecherait l'emission comme le renouvellement du certificat.
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?PUBLIC_DOMAIN est obligatoire (ex. app.forsalaw.tn) — doit resoudre vers cette machine, sinon aucun certificat ne peut etre emis}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificats et cle de compte ACME. SANS ce volume, chaque redemarrage redemanderait un
+      # certificat et atteindrait vite la limite hebdomadaire de Let's Encrypt (5 par domaine),
+      # laissant le site sans TLS pendant plusieurs jours.
+      - forsalaw_caddydata:/data
+      - forsalaw_caddyconfig:/config
 
 networks:
   forsalaw-net:
@@ -267,3 +296,5 @@ volumes:
   forsalaw_hyde_cache:
   forsalaw_miniodata:
   forsalaw_rabbitmqdata:
+  forsalaw_caddydata:
+  forsalaw_caddyconfig:

@@ -142,13 +142,11 @@ public class UserService {
         return toDTO(user);
     }
 
-    @Transactional
-    public void deactivateMyAccount(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé."));
-        user.setActif(false);
-        userRepository.save(user);
-    }
+    // deactivateMyAccount a ete retiree : elle desactivait le compte en conservant nom,
+    // prenom, email et telephone en clair, alors qu'elle servait « supprimer mon compte ».
+    // L'effacement d'un compte par son titulaire passe desormais par ErasureService, qui
+    // applique la politique decrite dans docs/ERASURE_POLICY.md. La desactivation
+    // administrative ci-dessous est un acte different (suspension, pas effacement) et reste.
 
     @Transactional
     public void deactivateByAdmin(String id) {

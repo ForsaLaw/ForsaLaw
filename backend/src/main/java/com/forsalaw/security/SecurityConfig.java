@@ -168,6 +168,17 @@ public class SecurityConfig {
                         // Place ici, apres les regles specifiques : il ne change rien pour les
                         // routes deja couvertes, il ne fait que fermer le reste.
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // ─── Supervision ────────────────────────────────────────────────
+                        // Seules les sondes de vivacite sont ouvertes : l'orchestrateur les
+                        // interroge sans pouvoir s'authentifier. Elles ne rendent qu'un statut.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Tout le reste est reserve aux administrateurs. /actuator/env et
+                        // /actuator/configprops exposeraient la configuration — donc les
+                        // adresses internes et la forme des secrets ; /actuator/metrics
+                        // renseigne sur la charge et la volumetrie. Rien de tout cela ne doit
+                        // etre lisible par un compte client authentifie, et encore moins
+                        // anonymement.
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
