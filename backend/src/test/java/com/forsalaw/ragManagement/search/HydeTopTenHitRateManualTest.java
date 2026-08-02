@@ -57,28 +57,20 @@ class HydeTopTenHitRateManualTest {
         rechercheSansHyde = new LegalChunkSearchService(embeddingClient, new NoOpHydeQueryRewriter(), chunkRepository);
     }
 
-    /** Les 10 questions du jeu d'evaluation (backend/src/test/resources/rag-eval/eval_set.json). */
-    private record CasEval(String codeName, String articleReference, String question) {}
-
-    private static final List<CasEval> QUESTIONS = List.of(
-            new CasEval("coc", "402", "Quel est le délai de prescription de droit commun en matière d'obligations en Tunisie ?"),
-            new CasEval("coc", "2", "ما هي شروط صحة العقد في القانون التونسي؟"),
-            new CasEval("csp", "5", "Quel est l'âge minimum légal du mariage en Tunisie ?"),
-            new CasEval("csp", "31", "ما هي الإجراءات القانونية للطلاق في تونس؟"),
-            new CasEval("ct", "6-4", "Quelle est la durée de la période d'essai dans un contrat de travail à durée indéterminée ?"),
-            new CasEval("cp", "264", "ما هي عقوبة السرقة في المجلة الجزائية التونسية؟"),
-            new CasEval("cpcc", "185", "Quel est le délai pour former un pourvoi en cassation en matière civile ?"),
-            new CasEval("cs", "161", "ما هو الحد الأدنى لرأس مال الشركة خفية الاسم؟"),
-            new CasEval("coc", "742", "Quelles sont les obligations du bailleur dans un contrat de louage ?"),
-            new CasEval("cpp", "13-bis", "ما هي مدة الاحتفاظ بالمحضر في حالة التلبس بجريمة؟")
-    );
-
+    // Le jeu etait auparavant RECOPIE ici, en plus de eval_set.json. Les deux copies avaient
+    // diverge (ce code visait « cs » quand le JSON disait « Code des Societes Commerciales »),
+    // et aucune ne correspondait au corpus. Le JSON fait desormais foi ; voir JeuEvaluation.
     @Test
     void hydeAmelioreLeTauxDeReussiteEnTop10() {
+        // Seules les questions ATTEIGNABLES entrent dans le score : deux entrees visent un
+        // article absent du corpus (eval-005, eval-008) et seraient comptees comme des echecs
+        // de pertinence alors qu'aucune recherche ne peut les reussir.
+        List<JeuEvaluation.Cas> questions = JeuEvaluation.atteignables();
+        int total = questions.size();
         int reussitesAvecHyde = 0;
         int reussitesSansHyde = 0;
 
-        for (CasEval cas : QUESTIONS) {
+        for (JeuEvaluation.Cas cas : questions) {
             boolean trouveAvec = contientArticleAttendu(
                     rechercheAvecHyde.rechercher(cas.question(), 1, null, LocalDate.now(), 10), cas);
             boolean trouveSans = contientArticleAttendu(
@@ -91,8 +83,8 @@ class HydeTopTenHitRateManualTest {
             if (trouveSans) reussitesSansHyde++;
         }
 
-        System.out.printf("Top 10 : sans HyDE = %d/10, avec HyDE = %d/10%n",
-                reussitesSansHyde, reussitesAvecHyde);
+        System.out.printf("Top 10 : sans HyDE = %d/%d, avec HyDE = %d/%d%n",
+                reussitesSansHyde, total, reussitesAvecHyde, total);
 
         assertThat(reussitesAvecHyde)
                 .as("HyDE doit ameliorer (ou au pire egaler) le taux de reussite en top 10")
@@ -103,7 +95,7 @@ class HydeTopTenHitRateManualTest {
     }
 
     private boolean contientArticleAttendu(
-            List<LegalDocumentChunkRepository.ResultatRecherche> resultats, CasEval cas) {
+            List<LegalDocumentChunkRepository.ResultatRecherche> resultats, JeuEvaluation.Cas cas) {
         return resultats.stream().anyMatch(r ->
                 cas.codeName().equals(r.codeName()) && cas.articleReference().equals(r.articleReference()));
     }
