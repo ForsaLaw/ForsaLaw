@@ -138,17 +138,28 @@ public class AiChatService {
                 new ChatGenerationClient.Message("user", prompt)
         );
 
-        // Filtre des citations, par requete (il porte un etat de tampon). Le nombre d'extrait
-        // REELLEMENT fournis au modele borne les numeros acceptables : une citation [7] sur
-        // trois extraits renvoie a une source qui n'a jamais existe.
+        // Deux filtres en CHAINE, par requete (chacun porte un tampon).
+        //
+        //   modele -> assainisseur (crochets) -> validateur (prose) -> client
+        //
+        // Ils traitent deux mensonges distincts. L'assainisseur borne les numeros d'EXTRAIT :
+        // une citation [7] sur trois extraits renvoie a une source qui n'a jamais existe. Le
+        // validateur borne les numeros d'ARTICLE ecrits dans la phrase : « les articles 141 du
+        // CPCC » ne porte aucun crochet, echappe donc entierement au premier filtre, et fait
+        // pourtant autorite aupres de qui ne peut pas verifier.
+        //
+        // L'ordre n'est pas indifferent : le validateur insere une mention entre parentheses,
+        // que l'assainisseur place en aval n'aurait aucune raison de respecter.
         AssainisseurCitations assainisseur = new AssainisseurCitations(resultats.size());
+        ValidateurReferencesProse validateur = new ValidateurReferencesProse(
+                resultats.stream().map(ResultatRecherche::articleReference).toList());
 
         chatGenerationClient.genererEnFlux(messages, new ChatGenerationClient.GestionnaireFlux() {
             @Override
             public void surJeton(String delta) {
-                // Le filtre peut ne rien restituer pour ce fragment : il retient la sortie tant
-                // qu'un crochet ouvert n'est pas tranche.
-                assainisseur.accepter(delta, this::envoyer);
+                // Aucun des deux filtres ne restitue forcement quelque chose pour ce fragment :
+                // tous deux retiennent la sortie tant qu'ils ne peuvent pas trancher.
+                assainisseur.accepter(delta, texte -> validateur.accepter(texte, this::envoyer));
             }
 
             private void envoyer(String texte) {
@@ -163,9 +174,11 @@ public class AiChatService {
 
             @Override
             public void surFin(ChatGenerationClient.UsageJetons usage) {
-                // Vide le tampon AVANT de cloturer : une citation encore retenue serait
-                // autrement perdue avec la fin du flux.
-                assainisseur.terminer(this::envoyer);
+                // Vide les tampons AVANT de cloturer, et DANS L'ORDRE DE LA CHAINE : ce que
+                // l'assainisseur libere doit encore traverser le validateur, sinon une
+                // reference retenue jusqu'au dernier jeton sortirait sans avoir ete verifiee.
+                assainisseur.terminer(texte -> validateur.accepter(texte, this::envoyer));
+                validateur.terminer(this::envoyer);
                 // Ajustement du depot au cout reel. Si le client s'est deconnecte avant cette
                 // trame, ce code n'est jamais atteint et le depot reste acquis : c'est ce qui
                 // rend une boucle d'abandon couteuse.
